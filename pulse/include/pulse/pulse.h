@@ -164,6 +164,7 @@ typedef struct Inode {
     u32 uid;
     u32 gid;
     u32 link_count;
+    u32 reserved2;
 
     u64 created_time;       // Unix time, nanosecond precision
     u64 modified_time;      // Unix time, nanosecond precision
@@ -174,8 +175,8 @@ typedef struct Inode {
     u64 extent_count;       // total count of extents - for fragmentation detection
     u64 extent_tree_root;   // block number of the root of the B+ tree
     u32 inline_size;
-    u32 reserved2;
-    u64 reserved3[3];       // reserved for future use
+    u32 reserved3;
+    u64 reserved4[3];       // reserved for future use
 
     // timestamped inode access history
     // cache of the last 8 accessed inodes, the top 3 are always there because
@@ -201,8 +202,6 @@ typedef struct Inode {
                             // if inline_size == 0, then this field is not valid
                             // and may contain garbage
 }__attribute__((packed)) Inode;
-
-
 typedef struct Directory {
     u64 hashmap_size;
     u64 file_count;
@@ -213,8 +212,9 @@ typedef struct Directory {
     u64 total_resizes;
     u64 total_expands;
     u64 total_shrinks;
+    u64 reserved[3];               // reserved for future use
 
-    u64 hashmap[];      // block numbers of the nests
+    u64 hashmap[];                 // offsets of the hash nests
 }__attribute__((packed)) Directory;
 
 typedef struct DirectoryEntry {
@@ -224,7 +224,8 @@ typedef struct DirectoryEntry {
 }__attribute__((packed)) DirectoryEntry;
 
 typedef struct DirectoryHashNest {
-    u64 next;
+    u64 next;                       // offset of the next nest
+    u64 count;                      // number of entries in this nest
     DirectoryEntry file[];
 }__attribute__((packed)) DirectoryHashNest;
 
