@@ -140,8 +140,8 @@ int format(const char *path, usize size, usize block_size, usize fanout) {
     superblock->formatting_utility = 1;
     superblock->formatting_time = time_ns;
 
-    // calculate the total size of the hierarchical bitmap so we know how many
-    // blocks to allocate for it
+    // calculate the size and structure of the hierarchical bitmap so we know
+    // how many blocks to allocate for it
     usize bitmap_size_bits = block_count;
     usize highest_layer = bitmap_size_bits;
     u8 layer_count = 1;
@@ -174,6 +174,7 @@ int format(const char *path, usize size, usize block_size, usize fanout) {
         layer_count, layer_count > 1 ? "s" : "",
         (int)highest_layer, highest_layer > 1 ? "s" : "");
 
+    u64 *layer_sizes = calloc(layer_count, sizeof(u64)); // size in bits
     u64 *layer_starts = calloc(layer_count, sizeof(u64));   // starting bit offset
     if(!layer_starts) {
         fclose(disk);
@@ -181,17 +182,50 @@ int format(const char *path, usize size, usize block_size, usize fanout) {
         return 1;
     }
 
-    for(int i = 0; i < layer_count; i++) {
-        if(!i) layer_starts[i] = 0;
-        else if(i == 1) layer_starts[i] = highest_layer;
-        else layer_starts[i] = layer_starts[i-1] * fanout;
+    for(int i = layer_count-1; i >= 0; i--) {
+        if(i == layer_count-1) {
+            layer_starts[i] = 0;
+            layer_sizes[i] = highest_layer;
+        } else  {
+            if(i == layer_count-2) layer_starts[i] = highest_layer;
+            else layer_starts[i] = layer_starts[i+1] * fanout;
+
+            layer_sizes[i] = layer_sizes[i+1] * fanout;
+        }
     }
 
-    for(int i = layer_count-1; i >= 0; i--) {
-        printf("    🛠️  layer %d%s: bits %llu -> %llu\n", layer_count-i-1,
-            !(layer_count-i-1) ? " (bottom)" : !i ? " (top)" : "",
+    u64 *layer_mapping_size = calloc(layer_count, sizeof(u64));
+    if(!layer_mapping_size) {
+        fclose(disk);
+        free(data);
+        free(layer_starts);
+        return 1;
+    }
+
+    for(int i = 0; i < layer_count; i++) {
+        if(i == 0) layer_mapping_size[i] = 1;
+        else layer_mapping_size[i] = layer_mapping_size[i-1] * fanout;
+    }
+
+    for(int i = 0; i < layer_count; i++) {
+        printf("    🛠️  layer %d%s: bits %llu -> %llu (%d bits, each maps ", i,
+            !i ? " (bottom)" : (i == layer_count-1) ? " (top)" : "",
             layer_starts[i],
-            (i != layer_count-1) ? layer_starts[i+1]-1 : layer_starts[i]+block_count-1);
+            (i > 0) ? layer_starts[i-1]-1 : layer_starts[i]+block_count-1,
+            (int)layer_sizes[i]);
+
+        u64 size = layer_mapping_size[i] * block_size;
+        if(size >> 40)
+            printf("%llu TB", size >> 40);
+        else if(size >> 30)
+            printf("%llu GB", size >> 30);
+        else if(size >> 20)
+            printf("%llu MB", size >> 20);
+        else if(size >> 10)
+            printf("%llu KB", size >> 10);
+        else
+            printf("%llu B", size);
+        printf(")\n");
     }
 
     fclose(disk);
