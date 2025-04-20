@@ -1,0 +1,201 @@
+/*
+ * pulse - a highly scalable SSD-first file system with predictable logarithmic
+ * bounds across all operations
+ * 
+ * Copyright (c) 2025 Omar Elghoul
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+#include <pulse/pulse.h>
+#include <pulse/cli.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
+
+int format(const char *path, usize size, usize block_size, usize fanout) {
+    usize block_count = size / block_size;
+
+    void *data = malloc(block_size);
+    if(!data) return -1;
+
+    memset(data, 0, block_size);
+
+    FILE *disk = fopen(path, "wb+");
+    if(!disk) {
+        free(data);
+        return 1;
+    }
+
+    for(usize i = 0; i < block_count; i++) {
+        if(fwrite(data, block_size, 1, disk) != 1) {
+            fclose(disk);
+            free(data);
+            return 1;
+        }
+    }
+
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    u64 time_ns = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+
+    SuperBlock *superblock = (SuperBlock *)data;
+    memcpy(&superblock->magic, SUPER_MAGIC_STRING, 8);
+    superblock->major_revision = SUPER_MAJOR_REVISION;
+    superblock->minor_revision = SUPER_MINOR_REVISION;
+    superblock->patch = SUPER_PATCH_REVISION;
+    superblock->superblock_size = sizeof(SuperBlock);
+
+    superblock->tuning = SUPER_TUNING_ENDIAN_NATIVE;
+    superblock->tuning |= SUPER_TUNING_JOURNAL_NONE; // TODO
+
+    // switch case and not bit arithmetic so we can validate the config here
+    switch(block_size) {
+    case 4096:
+        superblock->tuning |= SUPER_TUNING_BLOCK_SIZE_4K;
+        break;
+    case 8192:
+        superblock->tuning |= SUPER_TUNING_BLOCK_SIZE_8K;
+        break;
+    case 16384:
+        superblock->tuning |= SUPER_TUNING_BLOCK_SIZE_16K;
+        break;
+    case 32768:
+        superblock->tuning |= SUPER_TUNING_BLOCK_SIZE_32K;
+        break;
+    case 65536:
+        superblock->tuning |= SUPER_TUNING_BLOCK_SIZE_64K;
+        break;
+    case 131072:
+        superblock->tuning |= SUPER_TUNING_BLOCK_SIZE_128K;
+        break;
+    case 262144:
+        superblock->tuning |= SUPER_TUNING_BLOCK_SIZE_256K;
+        break;
+    case 524288:
+        superblock->tuning |= SUPER_TUNING_BLOCK_SIZE_512K;
+        break;
+    default:
+        return 1;
+    }
+
+    switch(fanout) {
+    case 8:
+        superblock->tuning |= SUPER_TUNING_FANOUT_FACTOR_8;
+        break;
+    case 16:
+        superblock->tuning |= SUPER_TUNING_FANOUT_FACTOR_16;
+        break;
+    case 32:
+        superblock->tuning |= SUPER_TUNING_FANOUT_FACTOR_32;
+        break;
+    case 64:
+        superblock->tuning |= SUPER_TUNING_FANOUT_FACTOR_64;
+        break;
+    default:
+        return 1;
+    }
+
+    usize bitmap_limit = DEFAULT_BITMAP_LIMIT;
+    switch(bitmap_limit) {
+    case 4096:
+        superblock->tuning |= SUPER_TUNING_BITMAP_LIMIT_4096;
+        break;
+    case 8192:
+        superblock->tuning |= SUPER_TUNING_BITMAP_LIMIT_8192;
+        break;
+    case 16384:
+        superblock->tuning |= SUPER_TUNING_BITMAP_LIMIT_16384;
+        break;
+    case 32768:
+        superblock->tuning |= SUPER_TUNING_BITMAP_LIMIT_32768;
+        break;
+    default:
+        return 1;
+    }
+
+    // TODO: proper UUID generation
+    superblock->uuid[0] = 0x1234567890abcdefULL;
+    superblock->uuid[1] = 0xfedcba0987654321ULL;
+
+    superblock->volume_size = block_count;
+    superblock->bitmap_block = SUPERBLOCK_BLOCK_NUMBER + 1;
+    superblock->formatting_utility = 1;
+    superblock->formatting_time = time_ns;
+
+    // calculate the total size of the hierarchical bitmap so we know how many
+    // blocks to allocate for it
+    usize bitmap_size_bits = block_count;
+    usize highest_layer = bitmap_size_bits;
+    u8 layer_count = 1;
+
+    while(highest_layer > DEFAULT_BITMAP_LIMIT) {
+        highest_layer /= fanout;
+        bitmap_size_bits += highest_layer;
+        layer_count++;
+    }
+
+    u32 bitmap_blocks = (((bitmap_size_bits + 7) / 8) + block_size - 1) / block_size;
+    u64 root_inode = SUPERBLOCK_BLOCK_NUMBER + 1 + bitmap_blocks;
+    superblock->root_inode = root_inode;
+    printf("    🛠️  root inode is at block %llu\n", root_inode);
+
+    if(write_block(disk, SUPERBLOCK_BLOCK_NUMBER, block_size, 1, superblock))
+        return 1;
+
+    // now we need to update the status of all the blocks up to the root inode
+    // to be allocated - on the lowest level of the bitmap, this is simply setting
+    // the corresponding bit to 1
+    // for higher levels on the bitmap, the bit is only set to 1 if all its children
+    // are set to 1
+    // we also need to track where each layer starts and ends because they are
+    // contiguous and not block-aligned nor are they the same size
+    // the first layer pointed to by the superblock is the topmost (smallest) layer
+    // and the last layer is the bottommost (largest) layer
+
+    printf("    🛠️  building %d layer%s of hierarchical bitmap, topmost layer contains %d bit%s\n",
+        layer_count, layer_count > 1 ? "s" : "",
+        (int)highest_layer, highest_layer > 1 ? "s" : "");
+
+    u64 *layer_starts = calloc(layer_count, sizeof(u64));   // starting bit offset
+    if(!layer_starts) {
+        fclose(disk);
+        free(data);
+        return 1;
+    }
+
+    for(int i = 0; i < layer_count; i++) {
+        if(!i) layer_starts[i] = 0;
+        else if(i == 1) layer_starts[i] = highest_layer;
+        else layer_starts[i] = layer_starts[i-1] * fanout;
+    }
+
+    for(int i = layer_count-1; i >= 0; i--) {
+        printf("    🛠️  layer %d%s: bits %llu -> %llu\n", layer_count-i-1,
+            !(layer_count-i-1) ? " (bottom)" : !i ? " (top)" : "",
+            layer_starts[i],
+            (i != layer_count-1) ? layer_starts[i+1]-1 : layer_starts[i]+block_count-1);
+    }
+
+    fclose(disk);
+    free(data);
+
+    return 0;
+}
