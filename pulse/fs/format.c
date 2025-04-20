@@ -152,10 +152,9 @@ int format(const char *path, usize size, usize block_size, usize fanout) {
         layer_count++;
     }
 
-    u32 bitmap_blocks = (((bitmap_size_bits + 7) / 8) + block_size - 1) / block_size;
+    u64 bitmap_blocks = (((bitmap_size_bits + 7) / 8) + block_size - 1) / block_size;
     u64 root_inode = SUPERBLOCK_BLOCK_NUMBER + 1 + bitmap_blocks;
     superblock->root_inode = root_inode;
-    printf("    🛠️  root inode is at block %llu\n", root_inode);
 
     if(write_block(disk, SUPERBLOCK_BLOCK_NUMBER, block_size, 1, superblock))
         return 1;
@@ -170,9 +169,8 @@ int format(const char *path, usize size, usize block_size, usize fanout) {
     // the first layer pointed to by the superblock is the topmost (smallest) layer
     // and the last layer is the bottommost (largest) layer
 
-    printf("    🛠️  building %d layer%s of hierarchical bitmap, topmost layer contains %d bit%s\n",
-        layer_count, layer_count > 1 ? "s" : "",
-        (int)highest_layer, highest_layer > 1 ? "s" : "");
+    printf("    🛠️  building %u layer%s of hierarchical bitmap with fanout factor %zu\n",
+        layer_count, layer_count > 1 ? "s" : "", fanout);
 
     u64 *layer_sizes = calloc(layer_count, sizeof(u64)); // size in bits
     u64 *layer_starts = calloc(layer_count, sizeof(u64));   // starting bit offset
@@ -228,6 +226,97 @@ int format(const char *path, usize size, usize block_size, usize fanout) {
         printf(")\n");
     }
 
+    // now check how many total blocks we just allocated, including
+    // preallocating the root inode block
+    u64 allocated_blocks = root_inode + 1;
+    u8 *bitmap = calloc(bitmap_blocks, block_size);
+    if(!bitmap) {
+        fclose(disk);
+        free(data);
+        free(layer_mapping_size);
+        free(layer_starts);
+        return 1;
+    }
+
+    // build the hierarchy
+    for(int i = 0; i < allocated_blocks; i++) {
+        write_bit(bitmap, layer_starts[0] + i, 1);
+
+        for(int j = 1; j < layer_count; j++) {
+            u64 sum = 0;
+            u64 factor = 1;
+            for(int k = 0; k < j; k++) {
+                factor *= fanout;
+            }
+
+            u64 bit = (i / factor);
+            u64 start = bit * fanout;
+
+            for(int k = 0; k < fanout; k++) {
+                sum += read_bit(bitmap, layer_starts[j-1] + start + k);
+            }
+
+            if(sum == fanout) {
+                write_bit(bitmap, layer_starts[j] + bit, 1);
+            }
+        }
+    }
+
+    printf("    🛠️  writing %llu blocks of bitmap data\n", bitmap_blocks);
+    if(write_block(disk, superblock->bitmap_block, block_size, bitmap_blocks, bitmap)) {
+        fclose(disk);
+        free(data);
+        free(bitmap);
+        free(layer_mapping_size);
+        free(layer_starts);
+        return 1;
+    }
+
+    free(bitmap);
+    free(layer_mapping_size);
+    free(layer_starts);
+
+    // now we need to write the root inode
+    Inode *inode = (Inode *)data;
+    memset(inode, 0, block_size);
+
+    inode->number = 1;
+    inode->mode = INODE_MODE_TYPE_DIR | INODE_MODE_U_RWX | INODE_MODE_G_R;
+    inode->mode |= INODE_MODE_G_X | INODE_MODE_O_R | INODE_MODE_O_X;
+    inode->uid = 0; // root
+    inode->gid = 0;
+    inode->link_count = 1;
+    inode->size = 0;
+
+    inode->created_time = time_ns;
+    inode->modified_time = time_ns;
+    inode->accessed_time = time_ns;
+    inode->changed_time = time_ns;
+
+    // explicitly setting these to zero because the hashmap need to be allocated
+    // on write
+    inode->size = 0;
+    inode->extent_count = 0;
+    inode->extent_tree_root = 0;
+    inode->inline_size = 0;
+
+    if(write_block(disk, root_inode, block_size, 1, inode)) {
+        fclose(disk);
+        free(data);
+        return 1;
+    }
+
+    printf("    🛠️  created root directory at inode %llu\n", root_inode);
+
+    u64 overhead = allocated_blocks * block_size;
+
+    printf("    ✅ formatted disk image %s with size %zu %s, overhead space %llu %s (%.2f%%)\n",
+        path,
+        size >> 40 ? size >> 40 : size >> 30 ? size >> 30 : size >> 20 ? size >> 20 : size >> 10 ? size >> 10 : size,
+        size >> 40 ? "TB" : size >> 30 ? "GB" : size >> 20 ? "MB" : size >> 10 ? "KB" : "B",
+        overhead >> 40 ? overhead >> 40 : overhead >> 30 ? overhead >> 30 : overhead >> 20 ? overhead >> 20 : overhead >> 10 ? overhead >> 10 : overhead,
+        overhead >> 40 ? "TB" : overhead >> 30 ? "GB" : overhead >> 20 ? "MB" : overhead >> 10 ? "KB" : "B",
+        ((float)overhead * 100 / size));
     fclose(disk);
     free(data);
 

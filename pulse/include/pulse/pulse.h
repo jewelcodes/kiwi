@@ -78,6 +78,32 @@
 #define SUPER_TUNING_BITMAP_LIMIT_16384 0x0200
 #define SUPER_TUNING_BITMAP_LIMIT_32768 0x0300
 
+/* inode mode */
+#define INODE_MODE_U_R                  0x0100
+#define INODE_MODE_U_W                  0x0080
+#define INODE_MODE_U_X                  0x0040
+#define INODE_MODE_U_RWX                0x0180
+#define INODE_MODE_G_R                  0x0020
+#define INODE_MODE_G_W                  0x0010
+#define INODE_MODE_G_X                  0x0008
+#define INODE_MODE_G_RWX                0x0028
+#define INODE_MODE_O_R                  0x0004
+#define INODE_MODE_O_W                  0x0002
+#define INODE_MODE_O_X                  0x0001
+#define INODE_MODE_O_RWX                0x0007
+#define INODE_MODE_SETUID               0x0800
+#define INODE_MODE_SETGID               0x0400
+#define INODE_MODE_STICKY               0x0200
+
+#define INODE_MODE_TYPE_MASK            0xF000
+#define INODE_MODE_TYPE_REG             0x8000
+#define INODE_MODE_TYPE_DIR             0x4000
+#define INODE_MODE_TYPE_LNK             0xA000
+#define INODE_MODE_TYPE_BLK             0x6000
+#define INODE_MODE_TYPE_CHR             0x2000
+#define INODE_MODE_TYPE_FIFO            0x1000
+#define INODE_MODE_TYPE_SOCK            0xC000
+
 /* directory thresholds */
 #define DIR_HASH_DEFAULT_SIZE           4       /* directories start with 4 nests */
 #define DIR_HASH_GROW_LOAD_FACTOR       75      /* grow at >=75% load factor */
@@ -132,11 +158,12 @@ typedef struct ExtentNode {     /* node in the B+ tree */
 }__attribute__((packed)) ExtentNode;
 
 typedef struct Inode {
-    u64 number; // 0
-    u32 mode; // 8
-    u32 uid; // 12
-    u32 gid; // 16
-    u32 link_count; // 20
+    u64 number;             // equal to block except for root where it's 1
+    u16 mode;
+    u16 reserved1;
+    u32 uid;
+    u32 gid;
+    u32 link_count;
 
     u64 created_time;       // Unix time, nanosecond precision
     u64 modified_time;      // Unix time, nanosecond precision
@@ -147,8 +174,8 @@ typedef struct Inode {
     u64 extent_count;       // total count of extents - for fragmentation detection
     u64 extent_tree_root;   // block number of the root of the B+ tree
     u32 inline_size;
-    u32 reserved1;
-    u64 reserved2[3];       // reserved for future use
+    u32 reserved2;
+    u64 reserved3[3];       // reserved for future use
 
     // timestamped inode access history
     // cache of the last 8 accessed inodes, the top 3 are always there because
@@ -190,9 +217,6 @@ typedef struct Directory {
     u64 hashmap[];      // block numbers of the nests
 }__attribute__((packed)) Directory;
 
-
-int h = sizeof(Directory);
-
 typedef struct DirectoryEntry {
     u64 inode;
     u64 reserved;
@@ -207,3 +231,5 @@ typedef struct DirectoryHashNest {
 int format(const char *path, usize size, usize block_size, usize fanout);
 int read_block(FILE *disk, u64 block, u16 block_size, usize count, void *buffer);
 int write_block(FILE *disk, u64 block, u16 block_size, usize count, const void *buffer);
+int read_bit(u8 *bitmap, u64 bit);
+int write_bit(u8 *bitmap, u64 bit, int value);
