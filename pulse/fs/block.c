@@ -58,3 +58,12 @@ int write_block(FILE *disk, u64 block, u16 block_size, usize count, const void *
     return 0;
 }
 
+int read_bit(u8 *bitmap, u64 bit) {
+    return (bitmap[bit / 8] >> (bit % 8)) & 1;
+}
+
+int write_bit(u8 *bitmap, u64 bit, int value) {
+    if(value) bitmap[bit / 8] |= (1 << (bit % 8));
+    else bitmap[bit / 8] &= ~(1 << (bit % 8));
+    return 0;
+}
