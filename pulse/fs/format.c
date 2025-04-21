@@ -57,7 +57,9 @@ int format(const char *path, usize size, usize block_size, usize fanout) {
     u64 time_ns = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
 
     SuperBlock *superblock = (SuperBlock *)data;
-    memcpy(&superblock->magic, SUPER_MAGIC_STRING, 8);
+    memcpy(&superblock->magic, SUPER_MAGIC_STRING, 7);
+    u8 *magic_version = (u8 *)&superblock->magic;
+    magic_version[7] = SUPER_MAGIC_VERSION;
     superblock->major_revision = SUPER_MAJOR_REVISION;
     superblock->minor_revision = SUPER_MINOR_REVISION;
     superblock->patch = SUPER_PATCH_REVISION;
@@ -280,7 +282,6 @@ int format(const char *path, usize size, usize block_size, usize fanout) {
     Inode *inode = (Inode *)data;
     memset(inode, 0, block_size);
 
-    inode->number = 1;
     inode->mode = INODE_MODE_TYPE_DIR | INODE_MODE_U_RWX | INODE_MODE_G_R;
     inode->mode |= INODE_MODE_G_X | INODE_MODE_O_R | INODE_MODE_O_X;
     inode->uid = 0; // root
@@ -293,8 +294,8 @@ int format(const char *path, usize size, usize block_size, usize fanout) {
     inode->accessed_time = time_ns;
     inode->changed_time = time_ns;
 
-    // explicitly setting these to zero because the hashmap need to be allocated
-    // on write
+    // explicitly setting these to zero because the hashmap needs to be
+    // allocated on first write
     inode->size = 0;
     inode->extent_count = 0;
     inode->extent_tree_root = 0;
