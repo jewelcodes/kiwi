@@ -27,6 +27,9 @@
 #include <pulse/cli.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+
+Mountpoint *mountpoint = NULL;
 
 int mount_command(int argc, char **argv) {
     if(argc != 2) {
@@ -35,12 +38,31 @@ int mount_command(int argc, char **argv) {
         return 1;
     }
 
-    if(__image_name) {
-        printf(ESC_BOLD_RED "mount:" ESC_RESET " unmount %s first\n", __image_name);
+    if(mountpoint && mountpoint->name) {
+        printf(ESC_BOLD_RED "mount:" ESC_RESET " unmount %s first\n", mountpoint->name);
         return 1;
     }
 
-    char *token = strtok(argv[1], "/");
+    if(mountpoint) {
+        free(mountpoint);
+        mountpoint = NULL;
+    }
+
+    mountpoint = malloc(sizeof(Mountpoint));
+    if(!mountpoint) {
+        printf(ESC_BOLD_RED "mount:" ESC_RESET " failed to allocate memory for mountpoint\n");
+        return 1;
+    }
+
+    char *duplicate = strdup(argv[1]);
+    if(!duplicate) {
+        printf(ESC_BOLD_RED "mount:" ESC_RESET " failed to allocate memory for image name\n");
+        free(mountpoint);
+        mountpoint = NULL;
+        return 1;
+    }
+
+    char *token = strtok(duplicate, "/");
     while(token) {
         char *next = strtok(NULL, "/");
         if(!next) break;
@@ -49,14 +71,8 @@ int mount_command(int argc, char **argv) {
 
     if(!token)
         token = argv[1];
-    
-    char *duplicate = strdup(token);
-    if(!duplicate) {
-        printf(ESC_BOLD_RED "mount:" ESC_RESET " failed to allocate memory for image name\n");
-        return 1;
-    }
 
-    __image_name = duplicate;
-    printf(ESC_BOLD_GREEN "mount:" ESC_RESET " ✅ mounted disk image %s\n", __image_name);
+    mountpoint->name = token;
+    printf(ESC_BOLD_GREEN "mount:" ESC_RESET " ✅ mounted disk image %s\n", argv[1]);
     return 0;
 }

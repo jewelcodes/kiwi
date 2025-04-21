@@ -34,12 +34,6 @@
 static int __signaled = 0;
 static const char *__name;
 
-char *__image_name = NULL;
-FILE *__disk;
-u16 __block_size = DEFAULT_BLOCK_SIZE;
-u8 __fanout = DEFAULT_FANOUT_FACTOR;
-u64 __block_count = 0;
-
 #define PROMPT (ESC_BOLD_CYAN "⌘" ESC_RESET " ")
 
 void print_prompt(const char *name, int status) {
@@ -49,7 +43,8 @@ void print_prompt(const char *name, int status) {
         fputs(ESC_BOLD_GREEN "✓" ESC_RESET, stdout);
     }
 
-    if(__image_name) printf(" " ESC_BOLD_BLUE "%s" ESC_RESET, __image_name);
+    if(mountpoint && mountpoint->name)
+        printf(" " ESC_BOLD_BLUE "%s" ESC_RESET, mountpoint->name);
 
     putchar(' ');
     fputs(PROMPT, stdout);

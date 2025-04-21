@@ -280,6 +280,16 @@ typedef struct DirectoryHashNest {
     DirectoryEntry file[];
 }__attribute__((packed)) DirectoryHashNest;
 
+typedef struct Mountpoint {
+    SuperBlock superblock;
+    char *name;
+    FILE *disk;
+    u32 block_size;
+    u8 fanout;
+} Mountpoint;
+
+extern Mountpoint *mountpoint;
+
 int format(const char *path, usize size, usize block_size, usize fanout);
 int read_block(FILE *disk, u64 block, u16 block_size, usize count, void *buffer);
 int write_block(FILE *disk, u64 block, u16 block_size, usize count, const void *buffer);

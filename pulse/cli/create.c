@@ -39,8 +39,8 @@ int create_command(int argc, char **argv) {
 
     int mount = !strcmp(argv[1], "-m") || !strcmp(argv[1], "--mount");
 
-    if(mount && __image_name) {
-        printf(ESC_BOLD_RED "create:" ESC_RESET " unmount %s first\n", __image_name);
+    if(mount && mountpoint && mountpoint->name) {
+        printf(ESC_BOLD_RED "create:" ESC_RESET " unmount %s first\n", mountpoint->name);
         return 1;
     }
 
