@@ -99,24 +99,21 @@ int create_command(int argc, char **argv) {
     }
 
     char *path = strdup(argv[img_index]);
-    char *token = strtok(path, "/");
-    while(token) {
-        char *next = strtok(NULL, "/");
-        if(!next) break;
-        token = next;
-    }
-
-    if(!token)
-        token = argv[img_index];
-    
-    char *duplicate = strdup(token);
-    if(!duplicate) {
+    if(!path) {
         printf(ESC_BOLD_RED "create:" ESC_RESET " failed to allocate memory for image name\n");
-        free(path);
         return 1;
     }
 
-    __image_name = duplicate;
-    printf(ESC_BOLD_GREEN "create:" ESC_RESET " ✅ created disk image %s\n", __image_name);
+    if(mount) {
+        char *args[] = { "mount", path };
+        int status = mount_command(2, args);
+        free(path);
+        if(status) {
+            printf(ESC_BOLD_RED "create:" ESC_RESET " failed to mount disk image %s\n", path);
+            return status;
+        }
+    }
+
+    printf(ESC_BOLD_GREEN "create:" ESC_RESET " ✅ created disk image %s\n", argv[img_index]);
     return 0;
 }

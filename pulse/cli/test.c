@@ -37,7 +37,7 @@ struct Test {
 
 static int test_create() {
     mkdir("test", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-    char *args[] = { "create", "test/test.img", "10M" };
+    char *args[] = { "create", "-m", "test/test.img", "10M" };
 
     int status = create_command(2, args);
     if(status) return status;
