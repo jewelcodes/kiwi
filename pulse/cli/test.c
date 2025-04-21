@@ -55,12 +55,14 @@ int test_command(int argc, char **argv) {
     int fail_count = 0;
 
     for(int i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
-        printf(ESC_BOLD_CYAN "test:" ESC_RESET " %d: %s - %s\n", i+1, tests[i].name, tests[i].description);
+        printf(ESC_BOLD_CYAN "test:" ESC_RESET " 🔄 running test %s - %s\n", tests[i].name, tests[i].description);
         if(tests[i].function) {
             int status = tests[i].function();
             if(status) {
                 printf(ESC_BOLD_RED "test:" ESC_RESET " ⚠️ test %s failed\n", tests[i].name);
                 fail_count++;
+            } else {
+                printf(ESC_BOLD_GREEN "test:" ESC_RESET " ✅ test %s passed\n", tests[i].name);
             }
         }
     }
@@ -68,7 +70,8 @@ int test_command(int argc, char **argv) {
     if(fail_count) {
         printf(ESC_BOLD_RED "test:" ESC_RESET " ❌ %d/%d tests failed\n", fail_count, test_count);
     } else {
-        printf(ESC_BOLD_GREEN "test:" ESC_RESET " ✅ all tests passed\n");
+        printf(ESC_BOLD_GREEN "test:" ESC_RESET " ✅ %d test%s passed\n", test_count,
+            test_count > 1 ? "s" : "");
     }
 
     return fail_count ? 1 : 0;
