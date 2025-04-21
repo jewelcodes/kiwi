@@ -98,7 +98,8 @@ int create_command(int argc, char **argv) {
         return status;
     }
 
-    char *token = strtok(argv[img_index], "/");
+    char *path = strdup(argv[img_index]);
+    char *token = strtok(path, "/");
     while(token) {
         char *next = strtok(NULL, "/");
         if(!next) break;
@@ -111,6 +112,7 @@ int create_command(int argc, char **argv) {
     char *duplicate = strdup(token);
     if(!duplicate) {
         printf(ESC_BOLD_RED "create:" ESC_RESET " failed to allocate memory for image name\n");
+        free(path);
         return 1;
     }
 
