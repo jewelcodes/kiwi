@@ -80,6 +80,7 @@ struct Command commands[] = {
     {"sync", "sync the file system to the disk image", NULL},
     {"check", "check the file system for errors", NULL},
     {"repair", "repair the file system", NULL},
+    {"test", "run development tests", test_command},
 };
 
 int exit_command(int argc, char **argv) {

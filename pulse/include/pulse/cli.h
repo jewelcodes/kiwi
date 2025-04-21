@@ -78,3 +78,4 @@ int script(int argc, char **argv);
 
 int mount_command(int argc, char **argv);
 int create_command(int argc, char **argv);
+int test_command(int argc, char **argv);

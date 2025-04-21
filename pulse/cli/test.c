@@ -1,0 +1,76 @@
+/*
+ * pulse - a highly scalable SSD-first file system with predictable logarithmic
+ * bounds across all operations
+ * 
+ * Copyright (c) 2025 Omar Elghoul
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+#include <pulse/pulse.h>
+#include <pulse/cli.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/stat.h>
+
+struct Test {
+    const char *name;
+    const char *description;
+    int (*function)();
+};
+
+static int test_create() {
+    mkdir("test", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+    char *args[] = { "create", "test/test.img", "10M" };
+
+    int status = create_command(2, args);
+    if(status) return status;
+    return 0;
+}
+
+struct Test tests[] = {
+    {"create", "creating new disk image", test_create},
+};
+
+int test_command(int argc, char **argv) {
+    printf(ESC_BOLD_CYAN "test:" ESC_RESET " running tests...\n");
+
+    int test_count = sizeof(tests) / sizeof(tests[0]);
+    int fail_count = 0;
+
+    for(int i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+        printf(ESC_BOLD_CYAN "test:" ESC_RESET " %d: %s - %s\n", i+1, tests[i].name, tests[i].description);
+        if(tests[i].function) {
+            int status = tests[i].function();
+            if(status) {
+                printf(ESC_BOLD_RED "test:" ESC_RESET " ⚠️ test %s failed\n", tests[i].name);
+                fail_count++;
+            }
+        }
+    }
+
+    if(fail_count) {
+        printf(ESC_BOLD_RED "test:" ESC_RESET " ❌ %d/%d tests failed\n", fail_count, test_count);
+    } else {
+        printf(ESC_BOLD_GREEN "test:" ESC_RESET " ✅ all tests passed\n");
+    }
+
+    return fail_count ? 1 : 0;
+}
+
