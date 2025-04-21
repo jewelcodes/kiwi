@@ -78,7 +78,28 @@
 #define SUPER_TUNING_BITMAP_LIMIT_16384 0x0200
 #define SUPER_TUNING_BITMAP_LIMIT_32768 0x0300
 
-/* inode mode */
+/* superblock status field */
+#define SUPER_STATUS_MOUNTED            0x01    /* set on mount */
+#define SUPER_STATUS_DIRTY              0x02    /* set on first write BEFORE writing to journal */
+#define SUPER_STATUS_REPLAYING          0x04    /* set DURING journal replay */
+#define SUPER_STATUS_REPAIR_REQUIRED    0x08    /* set if previous bit is set on mount i.e. failure occured while replaying */
+#define SUPER_STATUS_DEGRADED           0x10    /* set if the journal is corrupted */
+#define SUPER_STATUS_LOCKED             0x20    /* set if the file system is locked */
+
+/* journaling */
+#define JOURNAL_TXN_ID(x)               ((x) & 0xFFFFFF)
+#define JOURNAL_TXN_OPCODE(x)           ((x) >> 24)
+
+#define JOURNAL_OPCODE_WRAP             0x00    /* wraparound opcode, no-op */
+#define JOURNAL_OPCODE_COMMIT           0xFF    /* commit */
+#define JOURNAL_OPCODE_ABORT            0xFE    /* abort and discard */
+#define JOURNAL_OPCODE_WRITE_INODE      0x01    /* write to inode */
+#define JOURNAL_OPCODE_WRITE_DIR        0x02    /* write to directory hashmap */
+#define JOURNAL_OPCODE_WRITE_BITMAP     0x03    /* write to bitmap */
+#define JOURNAL_OPCODE_WRITE_EXTENT     0x04    /* write to extent tree */
+
+/* inode mode - lower 16 bits preserve constant values that are consistent with
+ * tooling like chmod in octal mode - higher 16 bits are pulse-specific */
 #define INODE_MODE_U_R                  0x0100
 #define INODE_MODE_U_W                  0x0080
 #define INODE_MODE_U_X                  0x0040
@@ -103,6 +124,18 @@
 #define INODE_MODE_TYPE_CHR             0x2000
 #define INODE_MODE_TYPE_FIFO            0x1000
 #define INODE_MODE_TYPE_SOCK            0xC000
+#define INODE_MODE_TYPE(x)              ((x) & INODE_MODE_TYPE_MASK)
+
+#define INODE_MODE_TYPE_IS_REG(x)       (((x) & INODE_MODE_TYPE_MASK) == INODE_MODE_TYPE_REG)
+#define INODE_MODE_TYPE_IS_DIR(x)       (((x) & INODE_MODE_TYPE_MASK) == INODE_MODE_TYPE_DIR)
+#define INODE_MODE_TYPE_IS_LNK(x)       (((x) & INODE_MODE_TYPE_MASK) == INODE_MODE_TYPE_LNK)
+#define INODE_MODE_TYPE_IS_BLK(x)       (((x) & INODE_MODE_TYPE_MASK) == INODE_MODE_TYPE_BLK)
+#define INODE_MODE_TYPE_IS_CHR(x)       (((x) & INODE_MODE_TYPE_MASK) == INODE_MODE_TYPE_CHR)
+#define INODE_MODE_TYPE_IS_FIFO(x)      (((x) & INODE_MODE_TYPE_MASK) == INODE_MODE_TYPE_FIFO)
+#define INODE_MODE_TYPE_IS_SOCK(x)      (((x) & INODE_MODE_TYPE_MASK) == INODE_MODE_TYPE_SOCK)
+
+#define INODE_MODE_JOURNAL_OPT_OUT      0x10000 /* 1 = disable journal */
+#define INODE_MODE_IMMUTABLE            0x20000 /* nobody can change this inode */
 
 /* directory thresholds */
 #define DIR_HASH_DEFAULT_SIZE           4       /* directories start with 4 nests */
@@ -126,10 +159,12 @@ typedef struct SuperBlock {
     u8 reserved2[3];
 
     u64 uuid[2];            // 128-bit UUID
-
     u64 volume_size;        // in blocks
     u64 root_inode;         // inode number of the root directory
     u64 bitmap_block;       // block number of the hierarchical bitmap
+    u64 journal_block;      // block number of the journal
+    u64 journal_size;       // size of the journal in blocks
+
     u64 formatting_utility; // in the future I will allocate values for this
     u64 formatting_time;    // Unix time, nanosecond precision
     u64 last_mount_time;    // Unix time, nanosecond precision
@@ -142,6 +177,22 @@ typedef struct SuperBlock {
 
     s8 label[256];          // UTF-8, null-terminated
 }__attribute__((packed)) SuperBlock;
+
+typedef struct JournalHeader {
+    u64 checksum;
+    u64 entry_count;        // number of total entries in the journal
+    u64 head;               // offset of append new entries
+    u64 tail;               // offset of the oldest uncommitted entry
+}__attribute__((packed)) JournalHeader;
+
+typedef struct JournalEntry {
+    u32 txn_opcode;         // low 8 bits opcode, high 24 bits transaction ID
+    u16 payload_size;       // size of the payload, if applicable
+    u16 offset;             // offset of the payload in the inode, if applicable
+    u64 target_block;       // target
+    u64 timestamp;          // Unix time, nanosecond precision
+    u8 payload[];           // variable length, if applicable
+}__attribute__((packed)) JournalEntry;
 
 typedef struct ExtentHeader {   /* header of every node in the B+ tree */
     u64 size;               // number of valid extents/extent branches
@@ -158,7 +209,6 @@ typedef struct ExtentNode {     /* node in the B+ tree */
 }__attribute__((packed)) ExtentNode;
 
 typedef struct Inode {
-    u64 number;             // equal to block except for root where it's 1
     u16 mode;
     u16 reserved1;
     u32 uid;
@@ -202,6 +252,7 @@ typedef struct Inode {
                             // if inline_size == 0, then this field is not valid
                             // and may contain garbage
 }__attribute__((packed)) Inode;
+
 typedef struct Directory {
     u64 hashmap_size;
     u64 file_count;
