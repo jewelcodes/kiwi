@@ -157,6 +157,7 @@ int format(const char *path, usize size, usize block_size, usize fanout) {
     u64 bitmap_blocks = (((bitmap_size_bits + 7) / 8) + block_size - 1) / block_size;
     u64 root_inode = SUPERBLOCK_BLOCK_NUMBER + 1 + bitmap_blocks;
     superblock->root_inode = root_inode;
+    superblock->checksum = xxhash64(superblock, sizeof(SuperBlock));
 
     if(write_block(disk, SUPERBLOCK_BLOCK_NUMBER, block_size, 1, superblock))
         return 1;
