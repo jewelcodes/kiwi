@@ -37,9 +37,9 @@ struct Test {
 
 static int test_create() {
     mkdir("test", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-    char *args[] = { "create", "-m", "test/test.img", "10M" };
+    char *args[] = { "create", "-m", "test/test.img", "1G" };
 
-    int status = create_command(2, args);
+    int status = create_command(sizeof(args) / sizeof(args[0]), args);
     if(status) return status;
     return 0;
 }
@@ -68,7 +68,8 @@ int test_command(int argc, char **argv) {
     }
 
     if(fail_count) {
-        printf(ESC_BOLD_RED "test:" ESC_RESET " ❌ %d/%d tests failed\n", fail_count, test_count);
+        printf(ESC_BOLD_RED "test:" ESC_RESET " ❌ %d/%d test%s failed\n", fail_count, test_count,
+            fail_count > 1 ? "s" : "");
     } else {
         printf(ESC_BOLD_GREEN "test:" ESC_RESET " ✅ %d test%s passed\n", test_count,
             test_count > 1 ? "s" : "");

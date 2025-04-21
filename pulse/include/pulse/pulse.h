@@ -281,10 +281,16 @@ typedef struct DirectoryHashNest {
 }__attribute__((packed)) DirectoryHashNest;
 
 typedef struct Mountpoint {
-    SuperBlock superblock;
+    SuperBlock *superblock;
     char *name;
     FILE *disk;
     u32 block_size;
+    u32 bitmap_layers;
+    u16 highest_layer_size;
+    u8 *highest_layer_bitmap;
+    void *bitmap_block;
+    void *metadata_block;
+    void *data_block;
     u8 fanout;
 } Mountpoint;
 
