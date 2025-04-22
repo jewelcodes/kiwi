@@ -242,7 +242,7 @@ int mount_command(int argc, char **argv) {
 
     // cache the highest layer bitmap
     if(read_block(mountpoint->disk, mountpoint->superblock->bitmap_block,
-        mountpoint->block_size, mountpoint->bitmap_layers, mountpoint->highest_layer_bitmap)) {
+        mountpoint->block_size, 1, mountpoint->highest_layer_bitmap)) {
         printf(ESC_BOLD_RED "mount:" ESC_RESET " failed to read bitmap on %s\n", argv[1]);
         fclose(mountpoint->disk);
         free(mountpoint->data_block);
