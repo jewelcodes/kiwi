@@ -25,6 +25,7 @@
 
 #include <pulse/pulse.h>
 #include <stdio.h>
+#include <string.h>
 
 int read_block(FILE *disk, u64 block, u16 block_size, usize count, void *buffer) {
     if(!disk || !buffer) return 1;
@@ -99,7 +100,7 @@ u64 allocate_block() {
     if(!mountpoint || !mountpoint->superblock || !mountpoint->bitmap_block)
         return -1;
 
-    u64 bit_offset = find_lowest_free_bit(mountpoint->bitmap_block,
+    u64 bit_offset = find_lowest_free_bit(mountpoint->highest_layer_bitmap,
         mountpoint->highest_layer_size);
     if(bit_offset == -1) return -1;
 
@@ -109,6 +110,7 @@ u64 allocate_block() {
     }
 
     // avoids recursion so we have predictable stack usage
+    u64 final_block = -1;
     for(int i = mountpoint->bitmap_layers - 2; i >= 0; i--) {
         bit_offset *= mountpoint->fanout;
         u64 bit_offset_into_bitmap = mountpoint->layer_starts[i] + bit_offset;
@@ -126,7 +128,8 @@ u64 allocate_block() {
         }
 
         u64 old_bit_offset = bit_offset;
-        bit_offset = find_lowest_free_bit(offset_into_block, mountpoint->fanout);
+        bit_offset = find_lowest_free_bit(offset_into_block, 
+            mountpoint->fanout);
         if(bit_offset == -1) return -1;
 
         if(!i) {
@@ -135,9 +138,49 @@ u64 allocate_block() {
                 mountpoint->block_size, 1, mountpoint->bitmap_block)) {
                 return -1;
             }
-            return bit_offset + old_bit_offset;
+            final_block = bit_offset + old_bit_offset;
+            if((bit_offset & 7) == 7) {
+                /* check if this was the last in a leaf node */
+                u8 bytes_per_level = mountpoint->fanout / 8;
+                if(!(byte_offset % bytes_per_level)) {
+                    break;
+                }
+            }
+            return final_block;
         }
     }
 
-    return -1;
+    // if we reach here, we have to update the parents
+    bit_offset = final_block;
+    for(int i = 1; i < mountpoint->bitmap_layers; i++) {
+        bit_offset /= mountpoint->fanout;
+
+        u64 bit_offset_into_bitmap = mountpoint->layer_starts[i] + bit_offset;
+        u64 byte_offset = bit_offset_into_bitmap / 8;
+        u64 bitmap_block = (byte_offset / mountpoint->block_size) +
+            mountpoint->superblock->bitmap_block;
+        u64 bit_offset_into_block = bit_offset_into_bitmap % (mountpoint->block_size * 8);
+
+        if(read_block(mountpoint->disk, bitmap_block,
+            mountpoint->block_size, 1, mountpoint->bitmap_block)) {
+            return -1;
+        }
+
+        write_bit(mountpoint->bitmap_block, bit_offset_into_block, 1);
+
+        if(write_block(mountpoint->disk, bitmap_block,
+            mountpoint->block_size, 1, mountpoint->bitmap_block)) {
+            return -1;
+        }
+
+        if(i == mountpoint->bitmap_layers - 1) {
+            memcpy(mountpoint->highest_layer_bitmap,
+                mountpoint->bitmap_block, mountpoint->block_size);
+        }
+
+        if(bit_offset != mountpoint->fanout - 1)
+            break; // nothing more to update, reached 
+    }
+
+    return final_block;
 }
