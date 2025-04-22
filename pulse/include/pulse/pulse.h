@@ -289,6 +289,7 @@ typedef struct Mountpoint {
     u16 highest_layer_size;
     u8 *highest_layer_bitmap;
     u64 *layer_starts;
+    u64 *layer_sizes;
     void *bitmap_block;
     void *metadata_block;
     void *data_block;
@@ -303,5 +304,6 @@ int write_block(FILE *disk, u64 block, u16 block_size, usize count, const void *
 int read_bit(u8 *bitmap, u64 bit);
 int write_bit(u8 *bitmap, u64 bit, int value);
 int block_status(u64 block);
+u64 allocate_block();
 
 u64 xxhash64(const void *data, usize len);

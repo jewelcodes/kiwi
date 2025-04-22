@@ -68,6 +68,16 @@ int write_bit(u8 *bitmap, u64 bit, int value) {
     return 0;
 }
 
+u64 find_lowest_free_bit(u8 *bitmap, u64 size_bits) {
+    u8 byte;
+    for(u64 i = 0; i < size_bits; i++) {
+        if(i % 8 == 0) byte = bitmap[i / 8];
+        if(!(byte & (1 << (i % 8))))
+            return i;
+    }
+    return -1;
+}
+
 int block_status(u64 block) {
     if(!mountpoint || !mountpoint->superblock || !mountpoint->bitmap_block)
         return -1;
@@ -83,4 +93,51 @@ int block_status(u64 block) {
     }
 
     return read_bit(mountpoint->bitmap_block, bit_offset_in_block);
+}
+
+u64 allocate_block() {
+    if(!mountpoint || !mountpoint->superblock || !mountpoint->bitmap_block)
+        return -1;
+
+    u64 bit_offset = find_lowest_free_bit(mountpoint->bitmap_block,
+        mountpoint->highest_layer_size);
+    if(bit_offset == -1) return -1;
+
+    if(mountpoint->bitmap_layers == 1) {
+        write_bit(mountpoint->bitmap_block, bit_offset, 1);
+        return bit_offset;
+    }
+
+    // avoids recursion so we have predictable stack usage
+    for(int i = mountpoint->bitmap_layers - 2; i >= 0; i--) {
+        bit_offset *= mountpoint->fanout;
+        u64 bit_offset_into_bitmap = mountpoint->layer_starts[i] + bit_offset;
+
+        u64 byte_offset = bit_offset_into_bitmap / 8;
+        u64 bitmap_block = (byte_offset / mountpoint->block_size) +
+            mountpoint->superblock->bitmap_block;
+        
+        u8 *offset_into_block = (u8 *) mountpoint->bitmap_block +
+            byte_offset % mountpoint->block_size;
+
+        if(read_block(mountpoint->disk, bitmap_block,
+            mountpoint->block_size, 1, mountpoint->bitmap_block)) {
+            return -1;
+        }
+
+        u64 old_bit_offset = bit_offset;
+        bit_offset = find_lowest_free_bit(offset_into_block, mountpoint->fanout);
+        if(bit_offset == -1) return -1;
+
+        if(!i) {
+            write_bit(offset_into_block, bit_offset, 1);
+            if(write_block(mountpoint->disk, bitmap_block,
+                mountpoint->block_size, 1, mountpoint->bitmap_block)) {
+                return -1;
+            }
+            return bit_offset + old_bit_offset;
+        }
+    }
+
+    return -1;
 }

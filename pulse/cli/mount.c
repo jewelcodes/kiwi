@@ -254,7 +254,7 @@ int mount_command(int argc, char **argv) {
         return 1;
     }
 
-    // and the starting offset of each layer
+    // and the starting offset and sizes of each layer
     mountpoint->layer_starts = calloc(mountpoint->bitmap_layers, sizeof(u64));
     if(!mountpoint->layer_starts) {
         printf(ESC_BOLD_RED "mount:" ESC_RESET " failed to allocate memory for disk image %s\n", argv[1]);
@@ -268,13 +268,32 @@ int mount_command(int argc, char **argv) {
         return 1;
     }
 
+    mountpoint->layer_sizes = calloc(mountpoint->bitmap_layers, sizeof(u64));
+    if(!mountpoint->layer_sizes) {
+        printf(ESC_BOLD_RED "mount:" ESC_RESET " failed to allocate memory for disk image %s\n", argv[1]);
+        fclose(mountpoint->disk);
+        free(mountpoint->data_block);
+        free(mountpoint->metadata_block);
+        free(mountpoint->bitmap_block);
+        free(mountpoint->highest_layer_bitmap);
+        free(mountpoint->layer_starts);
+        free(mountpoint);
+        mountpoint = NULL;
+        return 1;
+    }
+
     for(int i = mountpoint->bitmap_layers-1; i >= 0; i--) {
         if(i == mountpoint->bitmap_layers-1) {
             mountpoint->layer_starts[i] = 0;
-        } else if(i == mountpoint->bitmap_layers-2) {
-            mountpoint->layer_starts[i] = mountpoint->highest_layer_size;
+            mountpoint->layer_sizes[i] = mountpoint->highest_layer_size;
         } else {
-            mountpoint->layer_starts[i] = mountpoint->layer_starts[i+1] * mountpoint->fanout;
+            if(i == mountpoint->bitmap_layers-2) {
+                mountpoint->layer_starts[i] = mountpoint->highest_layer_size;
+            } else {
+                mountpoint->layer_starts[i] = mountpoint->layer_starts[i+1] * mountpoint->fanout;
+            }
+
+            mountpoint->layer_sizes[i] = mountpoint->layer_sizes[i+1] * mountpoint->fanout;
         }
     }
 
