@@ -288,6 +288,7 @@ typedef struct Mountpoint {
     u32 bitmap_layers;
     u16 highest_layer_size;
     u8 *highest_layer_bitmap;
+    u64 *layer_starts;
     void *bitmap_block;
     void *metadata_block;
     void *data_block;
