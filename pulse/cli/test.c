@@ -37,15 +37,24 @@ struct Test {
 
 static int test_create() {
     mkdir("test", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-    char *args[] = { "create", "-m", "test/test.img", "1G" };
+    char *args[] = { "create", "test/test.img", "1G" };
 
     int status = create_command(sizeof(args) / sizeof(args[0]), args);
     if(status) return status;
     return 0;
 }
 
+static int test_mount() {
+    char *args[] = { "mount", "test/test.img" };
+
+    int status = mount_command(sizeof(args) / sizeof(args[0]), args);
+    if(status) return status;
+    return 0;
+}
+
 struct Test tests[] = {
     {"create", "creating new disk image", test_create},
+    {"mount", "mounting disk image", test_mount},
 };
 
 int test_command(int argc, char **argv) {
@@ -71,7 +80,7 @@ int test_command(int argc, char **argv) {
         printf(ESC_BOLD_RED "test:" ESC_RESET " ❌ %d/%d test%s failed\n", fail_count, test_count,
             fail_count > 1 ? "s" : "");
     } else {
-        printf(ESC_BOLD_GREEN "test:" ESC_RESET " ✅ %d test%s passed\n", test_count,
+        printf(ESC_BOLD_GREEN "test:" ESC_RESET " ✅ %d/%d test%s passed\n", test_count, test_count,
             test_count > 1 ? "s" : "");
     }
 

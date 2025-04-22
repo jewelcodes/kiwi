@@ -67,3 +67,19 @@ int write_bit(u8 *bitmap, u64 bit, int value) {
     else bitmap[bit / 8] &= ~(1 << (bit % 8));
     return 0;
 }
+
+int block_status(u64 block) {
+    if(!mountpoint || !mountpoint->highest_layer_bitmap) return -1;
+    if(block >= mountpoint->superblock->volume_size) return -1;
+
+    u64 bit_offset = block + mountpoint->layer_starts[0];
+    u64 bitmap_block = bit_offset / 8 / mountpoint->block_size;
+    u64 bit_offset_in_block = bit_offset % (mountpoint->block_size * 8);
+
+    if(read_block(mountpoint->disk, bitmap_block,
+        mountpoint->block_size, 1, mountpoint->bitmap_block)) {
+        return -1;
+    }
+
+    return read_bit(mountpoint->bitmap_block, bit_offset_in_block);
+}

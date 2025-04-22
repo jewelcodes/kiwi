@@ -302,5 +302,6 @@ int read_block(FILE *disk, u64 block, u16 block_size, usize count, void *buffer)
 int write_block(FILE *disk, u64 block, u16 block_size, usize count, const void *buffer);
 int read_bit(u8 *bitmap, u64 bit);
 int write_bit(u8 *bitmap, u64 bit, int value);
+int block_status(u64 block);
 
 u64 xxhash64(const void *data, usize len);
