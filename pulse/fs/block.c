@@ -184,3 +184,55 @@ u64 allocate_block() {
 
     return final_block;
 }
+
+int free_block(u64 block) {
+    if(!mountpoint || !mountpoint->superblock || !mountpoint->bitmap_block)
+        return -1;
+
+    u64 bit_offset = block + mountpoint->layer_starts[0];
+    u64 bitmap_block = (bit_offset / 8 / mountpoint->block_size) +
+        mountpoint->superblock->bitmap_block;
+    u64 bit_offset_in_block = bit_offset % (mountpoint->block_size * 8);
+
+    if(read_block(mountpoint->disk, bitmap_block,
+        mountpoint->block_size, 1, mountpoint->bitmap_block)) {
+        return -1;
+    }
+
+    write_bit(mountpoint->bitmap_block, bit_offset_in_block, 0);
+
+    if(write_block(mountpoint->disk, bitmap_block,
+        mountpoint->block_size, 1, mountpoint->bitmap_block)) {
+        return -1;
+    }
+
+    // check the immediate higher layer, and if needs to be updated then
+    // repeatedly update all the higher layers
+    bit_offset = block;
+    for(int i = 1; i < mountpoint->bitmap_layers; i++) {
+        bit_offset /= mountpoint->fanout;
+
+        u64 bit_offset_into_bitmap = mountpoint->layer_starts[i] + bit_offset;
+        u64 byte_offset = bit_offset_into_bitmap / 8;
+        u64 bitmap_block = (byte_offset / mountpoint->block_size) +
+            mountpoint->superblock->bitmap_block;
+        u64 bit_offset_into_block = bit_offset_into_bitmap % (mountpoint->block_size * 8);
+
+        if(read_block(mountpoint->disk, bitmap_block,
+            mountpoint->block_size, 1, mountpoint->bitmap_block)) {
+            return -1;
+        }
+
+        if(!read_bit(mountpoint->bitmap_block, bit_offset_into_block))
+            break; // parent already marked free, nothing to do
+
+        write_bit(mountpoint->bitmap_block, bit_offset_into_block, 0);
+
+        if(write_block(mountpoint->disk, bitmap_block,
+            mountpoint->block_size, 1, mountpoint->bitmap_block)) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
