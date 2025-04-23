@@ -27,6 +27,8 @@
 #include <pulse/cli.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <time.h>
 #include <sys/stat.h>
 
 struct Test {
@@ -37,7 +39,7 @@ struct Test {
 
 static int test_create() {
     mkdir("test", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-    char *args[] = { "create", "test/test.img", "1G" };
+    char *args[] = { "create", "test/test.img", "5g" };
 
     int status = create_command(sizeof(args) / sizeof(args[0]), args);
     if(status) return status;
@@ -52,9 +54,49 @@ static int test_mount() {
     return 0;
 }
 
+static int test_allocate_blocks() {
+    u64 block, free_test = 0;
+    srand(time(NULL));
+    int test_count = mountpoint->fanout * 2;
+
+    printf(ESC_BOLD_CYAN "test:" ESC_RESET " running %d allocation tests...\n", test_count);
+
+    int random = rand() % test_count;
+
+    for(int i = 0; i < test_count; i++) {
+        block = allocate_block();
+        if(block == -1) {
+            printf(ESC_BOLD_RED "test:" ESC_RESET " failed to allocate block\n");
+            return 1;
+        }
+        printf("    🛠️ allocated block %llu\n", block);
+
+        if(i == random) {
+            free_test = block; // we will try to free and reallocate this random block
+        }
+    }
+
+    printf("    🛠️ attempt to free and reallocate block %llu\n", free_test);
+    free_block(free_test);
+
+    block = allocate_block();
+    if(block == -1) {
+        printf(ESC_BOLD_RED "test:" ESC_RESET " failed to allocate block\n");
+        return 1;
+    }
+
+    if(block != free_test) {
+        printf(ESC_BOLD_RED "test:" ESC_RESET " allocated block %llu but expected %llu\n", block, free_test);
+        return 1;
+    }
+
+    return 0;
+}
+
 struct Test tests[] = {
     {"create", "creating new disk image", test_create},
     {"mount", "mounting disk image", test_mount},
+    {"allocate", "allocating blocks", test_allocate_blocks},
 };
 
 int test_command(int argc, char **argv) {
@@ -86,4 +128,3 @@ int test_command(int argc, char **argv) {
 
     return fail_count ? 1 : 0;
 }
-
