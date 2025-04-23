@@ -208,6 +208,8 @@ int free_block(u64 block) {
 
     // check the immediate higher layer, and if needs to be updated then
     // repeatedly update all the higher layers
+    if(mountpoint->bitmap_layers == 1) return 0;
+
     bit_offset = block;
     for(int i = 1; i < mountpoint->bitmap_layers; i++) {
         bit_offset /= mountpoint->fanout;
