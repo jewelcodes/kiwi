@@ -104,6 +104,8 @@ u64 allocate_block() {
         mountpoint->highest_layer_size);
     if(bit_offset == -1) return -1;
 
+    printf("highest layer free bit: %llu\n", bit_offset);
+
     if(mountpoint->bitmap_layers == 1) {
         write_bit(mountpoint->bitmap_block, bit_offset, 1);
         return bit_offset;
@@ -113,6 +115,8 @@ u64 allocate_block() {
     u64 final_block = -1;
     for(int i = mountpoint->bitmap_layers - 2; i >= 0; i--) {
         bit_offset *= mountpoint->fanout;
+
+        printf("searching for bits at layer %d starting at offset %llu\n", i, bit_offset);
         u64 bit_offset_into_bitmap = mountpoint->layer_starts[i] + bit_offset;
 
         u64 byte_offset = bit_offset_into_bitmap / 8;
@@ -132,22 +136,28 @@ u64 allocate_block() {
             mountpoint->fanout);
         if(bit_offset == -1) return -1;
 
+        printf("layer %d free bit: %llu\n", i, bit_offset + old_bit_offset);
+
         if(!i) {
             write_bit(offset_into_block, bit_offset, 1);
             if(write_block(mountpoint->disk, bitmap_block,
                 mountpoint->block_size, 1, mountpoint->bitmap_block)) {
                 return -1;
             }
+
+            printf("final block is %llu\n", bit_offset + old_bit_offset);
             final_block = bit_offset + old_bit_offset;
-            if((bit_offset & 7) == 7) {
-                /* check if this was the last in a leaf node */
-                u8 bytes_per_level = mountpoint->fanout / 8;
-                if(!(byte_offset % bytes_per_level)) {
-                    break;
-                }
+
+            if(find_lowest_free_bit(offset_into_block, mountpoint->fanout) == -1) {
+                // need to update parent layers
+                printf("parent layers should be updated\n");
+                break;
             }
+
             return final_block;
         }
+
+        bit_offset += old_bit_offset;
     }
 
     // if we reach here, we have to update the parents
@@ -166,6 +176,8 @@ u64 allocate_block() {
             return -1;
         }
 
+        printf("updating parent layer %d bit offset %llu\n", i, bit_offset);
+
         write_bit(mountpoint->bitmap_block, bit_offset_into_block, 1);
 
         if(write_block(mountpoint->disk, bitmap_block,
@@ -177,9 +189,31 @@ u64 allocate_block() {
             memcpy(mountpoint->highest_layer_bitmap,
                 mountpoint->bitmap_block, mountpoint->block_size);
         }
+        
+        //printf("layer %d bit offset %llu value %d\n", i, bit_offset, (*byte_from_bitmap));
 
-        if(bit_offset != mountpoint->fanout - 1)
-            break; // nothing more to update, reached 
+        /*if(bit_offset != mountpoint->fanout - 1) {
+            break; // nothing more to update, reached
+        }*/
+
+        //printf("bit offset into block = %llu, fanout = %d\n", bit_offset_into_block, mountpoint->fanout);
+        printf("byte offset = %llu\n", bit_offset_into_block / 8);
+        printf("byte offset 2 = %llu\n", (bit_offset_into_block / 8) - ((bit_offset_into_block / 8) % mountpoint->fanout));
+        printf("rhs = %llu\n", ((bit_offset_into_block / 8) % (mountpoint->fanout % 8)));
+
+        u64 offset = ((bit_offset_into_block / 8) % (mountpoint->fanout % 8));
+        offset -= (offset % (mountpoint->fanout / 8));
+
+        u64 lowest_bit = find_lowest_free_bit(
+            mountpoint->bitmap_block + offset,
+            mountpoint->fanout);
+
+        printf("lowest bit in parent layer %d is %llu\n", i, lowest_bit);
+
+        if(lowest_bit != -1)
+            break; // there are still free bits, no need to bubble up anymore
+        
+        printf("need to update parent layer %d\n", i + 1);
     }
 
     return final_block;
