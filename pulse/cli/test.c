@@ -39,7 +39,7 @@ struct Test {
 
 static int test_create() {
     mkdir("test", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-    char *args[] = { "create", "test/test.img", "5g" };
+    char *args[] = { "create", "test/test.img", "2g" };
 
     int status = create_command(sizeof(args) / sizeof(args[0]), args);
     if(status) return status;
@@ -55,9 +55,9 @@ static int test_mount() {
 }
 
 static int test_allocate_blocks() {
-    u64 block, free_test = 0;
+    u64 block, expected, free_test = 0;
     srand(time(NULL));
-    int test_count = mountpoint->fanout * 2;
+    int test_count = mountpoint->fanout * 256;
 
     printf(ESC_BOLD_CYAN "test:" ESC_RESET " running %d allocation tests...\n", test_count);
 
@@ -70,6 +70,13 @@ static int test_allocate_blocks() {
             return 1;
         }
         printf("    🛠️ allocated block %llu\n", block);
+
+        if(i > 0 && block != expected) {
+            printf(ESC_BOLD_RED "test:" ESC_RESET " allocated block %llu but expected %llu\n", block, expected);
+            return 1;
+        }
+
+        expected = block + 1;
 
         if(i == random) {
             free_test = block; // we will try to free and reallocate this random block
