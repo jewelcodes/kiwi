@@ -194,18 +194,17 @@ typedef struct JournalEntry {
     u8 payload[];           // variable length, if applicable
 }__attribute__((packed)) JournalEntry;
 
-typedef struct ExtentHeader {   /* header of every node in the B+ tree */
-    u64 size;               // number of valid extents/extent branches
-    u64 prev_leaf;          // block number of the previous leaf, zero in internal nodes and the first leaf
-    u64 next_leaf;          // block number of the next leaf, zero in internal nodes and the last leaf
-    u64 largest_offset;     // largest offset in the node - this is valid for both internal and leaf nodes
-}__attribute__((packed)) ExtentHeader;
+typedef struct ExtentNode {     /* for any node in the B+ tree */
+    u64 children;       // number of valid children, 0 = leaf node
+    u64 start_offset;   // starting file offset covered by this node
+    u64 length;         // length in bytes covered by this node
 
-typedef struct ExtentNode {     /* node in the B+ tree */
-    u64 offset;
-    u64 block;          // block number of the data block (leaf) or child (internal)
-    u64 count;          // contiguous block count (leaf), total block count (internal)
-    u64 modified_time;  // Unix time, nanosecond precision
+    u64 block;          // block number of the data block (leaf) or leftmost child (internal)
+    u64 block_count;    // number of contiguous blocks, valid for leaf nodes only
+
+    u64 parent_block;   // zero for the root
+    u64 left_sibling_block;
+    u64 right_sibling_block;
 }__attribute__((packed)) ExtentNode;
 
 typedef struct Inode {
@@ -245,12 +244,7 @@ typedef struct Inode {
         u64 accessed_time;  // Unix time, nanosecond precision
     } __attribute__((packed)) cache[8];
 
-    u8 payload[];           // variable length, if inline_size > 0 and bit 31 is
-                            // zero in it, this is inline data; if bit 31 is one
-                            // this is up to remainder of the block size filled
-                            // with extent nodes
-                            // if inline_size == 0, then this field is not valid
-                            // and may contain garbage
+    u8 payload[];           // variable length up to the block size
 }__attribute__((packed)) Inode;
 
 typedef struct Directory {
