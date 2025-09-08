@@ -300,5 +300,6 @@ int write_bit(u8 *bitmap, u64 bit, int value);
 int block_status(u64 block);
 u64 allocate_block();
 int free_block(u64 block);
+u64 resolve(const char *path);
 
 u64 xxhash64(const void *data, usize len);
