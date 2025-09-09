@@ -100,10 +100,15 @@ static int test_allocate_blocks() {
     return 0;
 }
 
+int test_dump_root() {
+    return dump_inode(resolve("/"));
+}
+
 struct Test tests[] = {
     {"create", "creating new disk image", test_create},
     {"mount", "mounting disk image", test_mount},
     {"allocate", "allocating blocks", test_allocate_blocks},
+    {"dumproot", "dumping root inode", test_dump_root},
 };
 
 int test_command(int argc, char **argv) {
