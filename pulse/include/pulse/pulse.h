@@ -303,5 +303,7 @@ int free_block(u64 block);
 u64 resolve(const char *path);
 int read_inode(u64 inode, Inode *buffer);
 int write_inode(u64 inode, const Inode *buffer);
+int read_from_inode(u64 inode, void *buf, u64 offset, u64 size);
+int write_to_inode(u64 inode, const void *buf, u64 offset, u64 size);
 
 u64 xxhash64(const void *data, usize len);
