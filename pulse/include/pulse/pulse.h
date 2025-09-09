@@ -103,15 +103,15 @@
 #define INODE_MODE_U_R                  0x0100
 #define INODE_MODE_U_W                  0x0080
 #define INODE_MODE_U_X                  0x0040
-#define INODE_MODE_U_RWX                0x0180
+#define INODE_MODE_U_RWX                (INODE_MODE_U_R | INODE_MODE_U_W | INODE_MODE_U_X)
 #define INODE_MODE_G_R                  0x0020
 #define INODE_MODE_G_W                  0x0010
 #define INODE_MODE_G_X                  0x0008
-#define INODE_MODE_G_RWX                0x0028
+#define INODE_MODE_G_RWX                (INODE_MODE_G_R | INODE_MODE_G_W | INODE_MODE_G_X)
 #define INODE_MODE_O_R                  0x0004
 #define INODE_MODE_O_W                  0x0002
 #define INODE_MODE_O_X                  0x0001
-#define INODE_MODE_O_RWX                0x0007
+#define INODE_MODE_O_RWX                (INODE_MODE_O_R | INODE_MODE_O_W | INODE_MODE_O_X)
 #define INODE_MODE_SETUID               0x0800
 #define INODE_MODE_SETGID               0x0400
 #define INODE_MODE_STICKY               0x0200
@@ -303,6 +303,7 @@ int free_block(u64 block);
 u64 resolve(const char *path);
 int read_inode(u64 inode, Inode *buffer);
 int write_inode(u64 inode, const Inode *buffer);
+int dump_inode(u64 inode);
 int read_from_inode(u64 inode, void *buf, u64 offset, u64 size);
 int write_to_inode(u64 inode, const void *buf, u64 offset, u64 size);
 

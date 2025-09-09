@@ -24,6 +24,7 @@
  */
 
 #include <pulse/pulse.h>
+#include <pulse/cli.h>
 #include <string.h>
 
 int read_inode(u64 inode, Inode *buffer) {
@@ -46,6 +47,49 @@ int write_inode(u64 inode, const Inode *buffer) {
     memcpy(mountpoint->metadata_block, buffer, buffer->inline_size + sizeof(Inode));
     if(write_block(mountpoint->disk, inode, mountpoint->block_size, 1, mountpoint->metadata_block))
         return -1;
+
+    return 0;
+}
+
+int dump_inode(u64 inode) {
+    Inode *buf = (Inode *) mountpoint->metadata_block;
+    if(read_inode(inode, buf))
+        return -1;
+    
+    printf(ESC_CYAN ESC_BOLD "Inode %llu\n" ESC_RESET, inode);
+    printf("  Mode: 0x%04X (%c%c%c%c%c%c%c%c%c%c)\n", buf->mode,
+        (buf->mode & INODE_MODE_TYPE_DIR) ? 'd' :
+        (buf->mode & INODE_MODE_TYPE_LNK) ? 'l' : '-',
+        (buf->mode & INODE_MODE_U_R)  ? 'r' : '-', // owner read
+        (buf->mode & INODE_MODE_U_W)  ? 'w' : '-', // owner write
+        (buf->mode & INODE_MODE_U_X)  ? 'x' : '-', // owner execute
+        (buf->mode & INODE_MODE_G_R)  ? 'r' : '-', // group read
+        (buf->mode & INODE_MODE_G_W)  ? 'w' : '-', // group write
+        (buf->mode & INODE_MODE_G_X)  ? 'x' : '-', // group execute
+        (buf->mode & INODE_MODE_O_R)  ? 'r' : '-', // others read
+        (buf->mode & INODE_MODE_O_W)  ? 'w' : '-', // others write
+        (buf->mode & INODE_MODE_O_X)  ? 'x' : '-'  // others execute
+    );
+
+    printf("  UID: %u\n", buf->uid);
+    printf("  GID: %u\n", buf->gid);
+    printf("  Link count: %u\n", buf->link_count);
+    printf("  Created time: %llu\n", buf->created_time);
+    printf("  Modified time: %llu\n", buf->modified_time);
+    printf("  Accessed time: %llu\n", buf->accessed_time);
+    printf("  Changed time: %llu\n", buf->changed_time);
+    printf("  Size: %llu bytes\n", buf->size);
+    printf("  Inline size: %u bytes\n", buf->inline_size);
+    printf("  Extent count: %llu\n", buf->extent_count);
+    printf("  Extent tree root: %llu\n", buf->extent_tree_root);
+
+    if(buf->inline_size > 0) {
+        printf("  Inline data (first 64 bytes or up to inline size):\n    ");
+        for(u32 i = 0; i < buf->inline_size && i < 64; i++) {
+            printf("%02X ", buf->payload[i]);
+        }
+        printf("\n");
+    }
 
     return 0;
 }
