@@ -43,7 +43,6 @@ int write_inode(u64 inode, const Inode *buffer) {
     if(!mountpoint || !mountpoint->superblock || !inode || !buffer)
         return -1;
 
-    memset(mountpoint->metadata_block, 0, mountpoint->block_size);
     memcpy(mountpoint->metadata_block, buffer, buffer->inline_size + sizeof(Inode));
     if(write_block(mountpoint->disk, inode, mountpoint->block_size, 1, mountpoint->metadata_block))
         return -1;
