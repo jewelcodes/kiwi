@@ -26,6 +26,7 @@
 [org 0]
 
 %define SEGMENT                         0x6000
+%define STACK_SEGMENT                   0x7000
 
 %define SECTOR_SIZE                     512
 %define SUPERBLOCK_BLOCK_SIZE           24
@@ -72,10 +73,12 @@ _start:
     cli
     cld
 
-    xor ax, ax
+    mov ax, STACK_SEGMENT
     mov ss, ax
+
+    xor ax, ax
+    mov sp, ax
     mov es, ax
-    mov sp, 0x7C00
 
     ; check if we were passed a partition table by the MBR
     mov di, boot_partition
