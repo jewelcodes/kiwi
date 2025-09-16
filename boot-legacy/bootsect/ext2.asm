@@ -364,7 +364,7 @@ read_inode:
     mov si, bgdt
     mov eax, [.block_group_number]
     and al, 0x1F
-    shl eax, 5
+    shl ax, 5
     add si, ax
     mov eax, [si + BGDT_INODE_TABLE]
     mov [.inode_table_base], eax
@@ -374,7 +374,7 @@ read_inode:
     mul ebx                     ; eax = byte offset within inode table
     mov ebx, 1024
     mov cl, [superblock + SUPERBLOCK_BLOCK_SIZE]
-    shl ebx, cl                ; ebx = number of sectors per block
+    shl ebx, cl                 ; ebx = number of sectors per block
     xor edx, edx
     div ebx
 
