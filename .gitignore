@@ -3,4 +3,5 @@
 *.o
 *.bin
 *.hdd
+guest
 pulse-playground
