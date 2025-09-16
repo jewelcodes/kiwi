@@ -1,5 +1,5 @@
 /*
- * kiwi - general-purpose high-performance operating system kernel
+ * kiwi - general-purpose high-performance operating system
  * 
  * Copyright (c) 2025 Omar Elghoul
  * 
