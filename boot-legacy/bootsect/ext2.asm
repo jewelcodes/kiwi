@@ -415,6 +415,48 @@ read_inode:
     add si, INODE_DIRECT_PTR_0
     mov cx, INODE_DIRECT_PTR_COUNT
 
+.direct_loop:
+    lodsd
+    test eax, eax
+    jz .done
+
+    push si
+    mov di, [.offset]
+    call read_block
+    pop si
+    jc error.disk
+
+    push cx
+    mov cl, [superblock + SUPERBLOCK_BLOCK_SIZE]
+    mov bx, 1024
+    shl bx, cl
+    add [.offset], bx
+    pop cx
+    loop .direct_loop
+
+.check_singly:
+    ; check if we need to read singly-linked indirect blocks
+    mov si, [.inode_ptr]
+    add si, INODE_SINGLY_INDIRECT_PTR
+    mov eax, [si]
+    test eax, eax
+    jz .done
+
+    mov dx, SEGMENT
+    mov es, dx
+    mov di, singly_block
+    call read_block
+    jc error.disk
+
+    mov ax, [.segment]
+    mov es, ax
+
+    mov bx, 1024 / 4
+    mov cl, [superblock + SUPERBLOCK_BLOCK_SIZE]
+    shl bx, cl          ; bx = number of block pointers per block
+    mov cx, bx
+    mov si, singly_block
+
 .singly_loop:
     lodsd
     test eax, eax
@@ -478,5 +520,6 @@ boot_partition:
 superblock:                         resb 4096
 inode_table:                        resb 4096
 bgdt:                               resb 4096
+singly_block:                       resb 4096
 block_buffer:                       resb 4096
 
