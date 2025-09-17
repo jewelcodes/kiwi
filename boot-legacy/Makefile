@@ -7,7 +7,7 @@ CFLAGS=-c -Wall -O3 -I./include -I../global
 LDFLAGS=-O3
 ASMFLAGS=-f bin -wnone
 
-BIN_SRC:=$(shell find ./bootsect -type f -name "*.asm")
+BIN_SRC:=$(shell find . -type f -name "*.asm")
 BIN_OBJ:=$(BIN_SRC:.asm=.bin)
 CSRC:=$(shell find . -type f -name "*.c")
 COBJ:=$(CSRC:.c=.o)
