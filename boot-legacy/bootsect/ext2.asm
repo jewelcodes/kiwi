@@ -28,6 +28,9 @@
 %define SEGMENT                         0x6000
 %define STACK_SEGMENT                   0x7000
 
+%define STAGE2_SEGMENT                  0x0000
+%define STAGE2_OFFSET                   0x0500
+
 %define SECTOR_SIZE                     512
 %define SUPERBLOCK_BLOCK_SIZE           24
 %define SUPERBLOCK_BLOCKS_PER_GROUP     32
@@ -176,7 +179,7 @@ _main:
     add si, ax
     mov ax, [si + DIRECTORY_ENTRY_LENGTH]
     test ax, ax
-    jz .not_found
+    jz error.not_found
 
     cmp byte [si + DIRECTORY_NAME_LENGTH], file_name_size
     jnz .list_loop
@@ -191,21 +194,15 @@ _main:
 
     ; found the file, load this inode
     mov eax, [si + DIRECTORY_INODE]
+    mov dx, STAGE2_SEGMENT
+    mov es, dx
     mov di, block_buffer
     call read_inode
     jc error.disk
 
-    mov si, block_buffer
-    call print_string
-
-    cli
-    hlt
-
-
-.not_found:
-    mov si, not_found_error
-    call print_string
-    jmp error.halt
+    mov dl, [bootdisk]
+    mov si, boot_partition
+    jmp STAGE2_SEGMENT:STAGE2_OFFSET
 
 ; print_string:
 ; @brief: prints a string to the screen
@@ -307,6 +304,11 @@ error:
 .bad_superblock:
     mov si, superblock_error
     call print_string
+    jmp .halt
+
+.not_found:
+    mov si, not_found_error
+    call print_string
 
 .halt:
     sti
@@ -316,7 +318,8 @@ error:
 newline:                            db 13, 10, 0
 disk_error:                         db "disk I/O error", 0
 superblock_error:                   db "bad superblock", 0
-not_found_error:                    db "file not found", 0
+not_found_error:                    db "boot.bin not found", 0
+
 padding1:                           times 510 - ($ - $$) db 0
 boot_signature:                     dw 0xAA55
 
@@ -491,7 +494,7 @@ read_inode:
     .offset:                        resb 2
     .type:                          resb 1
 
-    file_name:                      db "hello.txt"
+    file_name:                      db "boot.bin"
     file_name_size:                 equ $ - file_name
 
 padding2:                           times 1024 - ($ - $$) db 0
