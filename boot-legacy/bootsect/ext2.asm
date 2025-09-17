@@ -196,7 +196,7 @@ _main:
     mov eax, [si + DIRECTORY_INODE]
     mov dx, STAGE2_SEGMENT
     mov es, dx
-    mov di, block_buffer
+    mov di, STAGE2_OFFSET
     call read_inode
     jc error.disk
 
