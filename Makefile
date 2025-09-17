@@ -43,7 +43,7 @@ $(MODULE):
 	$(MAKE) --no-print-directory RECURSION_DEPTH=$$next_depth -C pulse; \
 	printf "\x1B[0m %*s🧩  creating \x1B[1mkiwi.hdd\x1B[0m\n" $$(( $(RECURSION_DEPTH) )) ""; \
 	mkdir -p guest; \
-	echo "hello world! this is a file loaded from disk" > guest/hello.txt; \
+	cp boot-legacy/boot.bin guest/ ; \
 	dd if=/dev/zero of=kiwi.hdd bs=1M count=128 status=none; \
 	mke2fs -q -F -t ext2 -d ./guest -m 0 -E root_owner=0:0 -L kiwi kiwi.hdd; \
 	dd if=./boot-legacy/bootsect/ext2.bin of=kiwi.hdd conv=notrunc bs=1024 count=1 status=none; \
