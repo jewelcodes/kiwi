@@ -43,7 +43,7 @@ _start:
 
     mov ax, STACK_SEGMENT
     mov ss, ax
-    xor sp, sp
+    mov sp, STACK_OFFSET
 
     ; ensure we have a 64-bit cpu
     mov eax, 0x80000001
@@ -99,12 +99,43 @@ _start:
     nop
 
 .a20_done:
-    mov ah, 0x0E
-    mov al, 'A' 
-    int 0x10
+    ; now we can switch to protected mode
+    cli
+    lgdt [gdtr]
 
+    mov eax, cr0
+    or al, 1
+    mov cr0, eax
+
+    jmp CODE32_SEGMENT:.next
+
+[bits 32]
+
+.next:
+    mov ax, DATA32_SEGMENT
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+    movzx esp, sp
+    add esp, STACK_SEGMENT << 4
+    mov ebp, esp
+
+    ; enable global caching
+    mov eax, cr0
+    and eax, 0xBFFFFFFF
+    mov cr0, eax
+
+    extern main
+    call main
+
+.halt:
     cli
     hlt
+    jmp .halt ; this is unreachable
+
+[bits 16]
 
 error:
 
@@ -128,9 +159,79 @@ error:
     hlt
     jmp .halt
 
-no64_msg:                   db "64-bit CPU is required to run kiwi", 0
 
+section .stubdata
+
+no64_msg:                   db "A 64-bit CPU is required to run kiwi", 0
 no_memory_msg:              db "At least 16 MB of RAM is required to run kiwi", 0
+
+align 16
+gdt:
+    ; 0x00 - null descriptor
+
+gdt_null:
+    dq 0
+
+    ; 0x08 - 32-bit code descriptor
+gdt_code32:
+    .limit:         dw 0xFFFF
+    .base_lo:       dw 0x0000
+    .base_mi:       db 0x00
+    .access:        db 0x9A     ; present, segment, executable, read access
+    .flags:         db 0xCF     ; page granularity, 32-bit
+    .base_hi:       db 0x00
+
+    ; 0x10 - 32-bit data descriptor
+gdt_data32:
+    .limit:         dw 0xFFFF
+    .base_lo:       dw 0x0000
+    .base_mi:       db 0x00
+    .access:        db 0x92     ; present, segment, non-executable, write access
+    .flags:         db 0xCF     ; page granularity, 32-bit
+    .base_hi:       db 0x00
+
+    ; 0x18 - 16-bit code descriptor
+gdt_code16:
+    .limit:         dw 0xFFFF
+    .base_lo:       dw 0x0000
+    .base_mi:       db 0x00
+    .access:        db 0x9A     ; present, segment, executable, read access
+    .flags:         db 0x0F     ; byte granularity, 16-bit
+    .base_hi:       db 0x00
+
+    ; 0x20 - 16-bit data descriptor
+gdt_data16:
+    .limit:         dw 0xFFFF
+    .base_lo:       dw 0x0000
+    .base_mi:       db 0x00
+    .access:        db 0x92     ; present, segment, non-executable, write access
+    .flags:         db 0x0F     ; byte granularity, 16-bit
+    .base_hi:       db 0x00
+
+    ; 0x28 - 64-bit code descriptor
+gdt_code64:
+    .limit:         dw 0xFFFF
+    .base_lo:       dw 0x0000
+    .base_mi:       db 0x00
+    .access:        db 0x9A     ; present, segment, executable, read access
+    .flags:         db 0xAF     ; page granularity, 64-bit
+    .base_hi:       db 0x00
+
+    ; 0x30 - 64-bit data descriptor
+gdt_data64:
+    .limit:         dw 0xFFFF
+    .base_lo:       dw 0x0000
+    .base_mi:       db 0x00
+    .access:        db 0x92     ; present, segment, non-executable, write access
+    .flags:         db 0xAF     ; page granularity, 64-bit
+    .base_hi:       db 0x00
+
+gdt_end:
+
+align 16
+gdtr:
+    .limit:         dw gdt_end - gdt - 1
+    .base:          dd gdt
 
 ; this structure will be passed to the main C program
 

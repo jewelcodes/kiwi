@@ -23,3 +23,11 @@
 ;
 
 %define STACK_SEGMENT           0x6000
+%define STACK_OFFSET            0xFFF0
+
+%define CODE32_SEGMENT          0x08
+%define DATA32_SEGMENT          0x10
+%define CODE16_SEGMENT          0x18
+%define DATA16_SEGMENT          0x20
+%define CODE64_SEGMENT          0x28
+%define DATA64_SEGMENT          0x30
