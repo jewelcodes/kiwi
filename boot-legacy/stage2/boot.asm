@@ -124,7 +124,7 @@ _start:
 
     ; enable global caching
     mov eax, cr0
-    and eax, 0xBFFFFFFF
+    and eax, 0x9FFFFFFF
     mov cr0, eax
 
     extern main
