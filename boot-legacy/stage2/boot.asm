@@ -23,9 +23,10 @@
 ;
 
 [bits 16]
-[org 0x500]
 
-_stage2:
+section .stub
+global _start
+_start:
     ; show a sign of life
     xor ax, ax
     mov ds, ax
