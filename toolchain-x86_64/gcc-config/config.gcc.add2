@@ -1,0 +1,14 @@
+    ;;
+i[34567]86-kiwi*)
+    tm_file="${tm_file} i386/unix.h i386/att.h elfos.h newlib-stdint.h i386/i386elf.h kiwi.h"
+    ;;
+x86_64-kiwi*)
+    tm_file="${tm_file} i386/unix.h i386/att.h elfos.h newlib-stdint.h i386/i386elf.h i386/x86-64.h kiwi.h"
+    ;;
+i[34567]86-*-kiwi*)
+    tm_file="${tm_file} i386/unix.h i386/att.h elfos.h newlib-stdint.h i386/i386elf.h kiwi.h"
+    ;;
+x86_64-*-kiwi*)
+    tm_file="${tm_file} i386/unix.h i386/att.h elfos.h newlib-stdint.h i386/i386elf.h i386/x86-64.h kiwi.h"
+    ;;
+*-*-dummyunused*)
