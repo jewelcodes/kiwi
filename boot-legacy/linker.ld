@@ -10,6 +10,11 @@ SECTIONS
         *(.stub)
     }
 
+    .stubdata BLOCK(8) : ALIGN(8)
+    {
+        *(.stubdata)
+    }
+
     .text BLOCK(8) : ALIGN(8)
     {
         *(.text)
