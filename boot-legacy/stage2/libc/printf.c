@@ -84,6 +84,7 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
     int left_justify = 0;
     int base = 10;
     int uppercase = 0;
+    int alternate_form = 0;
 
     for(; format[format_index]; format_index++) {
         switch(state) {
@@ -94,6 +95,7 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
                     width_modifier = 0;
                     zero_padding = 0;
                     left_justify = 0;
+                    alternate_form = 0;
                 } else {
                     if(output_index < size) {
                         str[output_index] = format[format_index];
@@ -119,6 +121,10 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
                     
                     case '-':
                         left_justify = 1;
+                        break;
+                    
+                    case '#':
+                        alternate_form = 1;
                         break;
                     
                     default:
@@ -275,12 +281,22 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
                     case 'x': {
                         base = 16;
                         uppercase = 0;
-                        goto print_unsigned_value;
+                        goto print_hex;
                     }
 
                     case 'X': {
                         base = 16;
                         uppercase = 1;
+
+print_hex:
+                        if(alternate_form) {
+                            if(output_index + 2 < size) {
+                                str[output_index++] = '0';
+                                str[output_index++] = uppercase ? 'X' : 'x';
+                            } else {
+                                output_index += 2;
+                            }
+                        }
 
 print_unsigned_value:
                         unsigned long long int value;
@@ -324,6 +340,40 @@ print_unsigned_value:
 
                         if(width_modifier && left_justify) {
                             int padding = width_modifier - strlen(buffer);
+                            while(padding-- > 0) {
+                                if(output_index < size) {
+                                    str[output_index] = ' ';
+                                }
+                                output_index++;
+                            }
+                        }
+
+                        break;
+                    }
+
+                    case 's': {
+                        const char *s = va_arg(ap, const char *);
+                        if(!s) s = "(null)";
+
+                        if(width_modifier && (!left_justify)) {
+                            int padding = width_modifier - strlen(s);
+                            while(padding-- > 0) {
+                                if(output_index < size) {
+                                    str[output_index] = ' ';
+                                }
+                                output_index++;
+                            }
+                        }
+
+                        for(usize i = 0; s[i]; i++) {
+                            if(output_index < size) {
+                                str[output_index] = s[i];
+                            }
+                            output_index++;
+                        }
+
+                        if(width_modifier && left_justify) {
+                            int padding = width_modifier - strlen(s);
                             while(padding-- > 0) {
                                 if(output_index < size) {
                                     str[output_index] = ' ';
