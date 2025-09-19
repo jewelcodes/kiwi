@@ -31,6 +31,8 @@
     #define VBE_SET_MODE                0x4F02
     #define VBE_GET_EDID                0x4F15
 
+    #define VBE_SUCCESS                 0x004F
+
     #define VBE_MODE_LINEAR             0x4000
     #define MAX_VBE_MODES               32
 
