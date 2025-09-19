@@ -66,16 +66,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <stdarg.h>
+#include <ctype.h>
+#include <string.h>
 
 #include <boot/output.h>
 
 int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
-    int state = STATE_NORMAL;
-    size--;
-    int len = 0;
     usize output_index = 0;
     usize format_index = 0;
-    int length_modifier;
+
+    int state = STATE_NORMAL;
+
+    int length_modifier = LENGTH_DEFAULT;
+    int width_modifier = 0;
+    int zero_padding = 0;
+    int left_justify = 0;
+    int base = 10;
+    int uppercase = 0;
 
     for(; format[format_index]; format_index++) {
         switch(state) {
@@ -83,10 +91,12 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
                 if(format[format_index] == '%') {
                     state = STATE_FLAGS;
                     length_modifier = LENGTH_DEFAULT;
+                    width_modifier = 0;
+                    zero_padding = 0;
+                    left_justify = 0;
                 } else {
                     if(output_index < size) {
                         str[output_index] = format[format_index];
-                        len++;
                     }
                     output_index++;
                 }
@@ -95,7 +105,22 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
             
             case STATE_FLAGS: {
                 switch(format[format_index]) {
-                    /* todo */
+                    case '%':
+                        if(output_index < size) {
+                            str[output_index] = '%';
+                        }
+                        output_index++;
+                        state = STATE_NORMAL;
+                        break;
+                    
+                    case '0':
+                        zero_padding = 1;
+                        break;
+                    
+                    case '-':
+                        left_justify = 1;
+                        break;
+                    
                     default:
                         state = STATE_WIDTH;
                         format_index--;
@@ -105,8 +130,11 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
             }
 
             case STATE_WIDTH: {
-                if(format[format_index] >= '0' && format[format_index] <= '9') {
-                    /* todo */
+                if(isdigit(format[format_index])) {
+                    width_modifier = atoi(&format[format_index]);
+                    while(isdigit(format[format_index])) format_index++;
+                    state = STATE_PRECISION;
+                    format_index--;
                 } else {
                     state = STATE_PRECISION;
                     format_index--;
@@ -161,11 +189,23 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
                 switch(format[format_index]) {
                     case 'c': {
                         char c = (char) va_arg(ap, int);
+
+                        if(width_modifier && (!left_justify)) {
+                            int padding = width_modifier - 1;
+                            while(padding-- > 0) {
+                                if(output_index < size) {
+                                    str[output_index] = ' ';
+                                }
+                                output_index++;
+                            }
+                        }
+
                         if(output_index < size) {
                             str[output_index] = c;
-                            len++;
                         }
                         output_index++;
+
+
                         break;
                     }
 
@@ -189,23 +229,124 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
                         } else {
                             value = va_arg(ap, int);
                         }
+
                         ltoa(value, buffer, 10);
+
+                        if(width_modifier && (!left_justify)) {
+                            int padding = width_modifier - strlen(buffer);
+                            while(padding-- > 0) {
+                                if(output_index < size) {
+                                    str[output_index] = zero_padding ? '0' : ' ';
+                                }
+                                output_index++;
+                            }
+                        }
+
                         for(usize i = 0; buffer[i]; i++) {
                             if(output_index < size) {
                                 str[output_index] = buffer[i];
-                                len++;
                             }
                             output_index++;
                         }
+
+                        if(width_modifier && left_justify) {
+                            int padding = width_modifier - strlen(buffer);
+                            while(padding-- > 0) {
+                                if(output_index < size) {
+                                    str[output_index] = ' ';
+                                }
+                                output_index++;
+                            }
+                        }
+
+                        break;
+                    }
+
+                    case 'u': {
+                        base = 10;
+                        goto print_unsigned_value;
+                    }
+
+                    case 'o': {
+                        base = 8;
+                        goto print_unsigned_value;
+                    }
+
+                    case 'x': {
+                        base = 16;
+                        uppercase = 0;
+                        goto print_unsigned_value;
+                    }
+
+                    case 'X': {
+                        base = 16;
+                        uppercase = 1;
+
+print_unsigned_value:
+                        unsigned long long int value;
+                        char buffer[32];
+                        if(length_modifier == LENGTH_CHAR) {
+                            value = (unsigned char) va_arg(ap, int);
+                        } else if(length_modifier == LENGTH_SHORT) {
+                            value = (unsigned short) va_arg(ap, int);
+                        } else if(length_modifier == LENGTH_LONG) {
+                            value = va_arg(ap, unsigned long);
+                        } else if(length_modifier == LENGTH_LONG_LONG) {
+                            value = va_arg(ap, unsigned long long);
+                        } else if(length_modifier == LENGTH_INTMAX_T) {
+                            value = va_arg(ap, uintmax_t);
+                        } else if(length_modifier == LENGTH_SIZE_T) {
+                            value = (unsigned long long) va_arg(ap, size_t);
+                        } else if(length_modifier == LENGTH_PTRDIFF_T) {
+                            value = (unsigned long long) va_arg(ap, ptrdiff_t);
+                        } else {
+                            value = va_arg(ap, int);
+                        }
+
+                        ultoa(value, buffer, base);
+
+                        if(width_modifier && (!left_justify)) {
+                            int padding = width_modifier - strlen(buffer);
+                            while(padding-- > 0) {
+                                if(output_index < size) {
+                                    str[output_index] = zero_padding ? '0' : ' ';
+                                }
+                                output_index++;
+                            }
+                        }
+
+                        for(usize i = 0; buffer[i]; i++) {
+                            if(output_index < size) {
+                                str[output_index] = uppercase ? toupper(buffer[i]) : tolower(buffer[i]);
+                            }
+                            output_index++;
+                        }
+
+                        if(width_modifier && left_justify) {
+                            int padding = width_modifier - strlen(buffer);
+                            while(padding-- > 0) {
+                                if(output_index < size) {
+                                    str[output_index] = ' ';
+                                }
+                                output_index++;
+                            }
+                        }
+
                         break;
                     }
                 }
+
+                state = STATE_NORMAL;
+                break;
             }
         }
     }
 
-    str[len] = 0;
-    return len;
+    if(output_index < size) {
+        str[output_index] = 0;
+    }
+
+    return output_index;
 }
 
 int snprintf(char *str, size_t size, const char *format, ...) {
