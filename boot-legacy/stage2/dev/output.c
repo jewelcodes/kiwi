@@ -31,6 +31,7 @@ Display display = {
 };
 
 static Registers output_regs;
+static void bios_print(const char *str);
 
 /*
  * print:
@@ -49,7 +50,7 @@ void print(const char *str) {
  * @param: str: null-terminated string to print
  */
 
-void bios_print(const char *str) {
+static void bios_print(const char *str) {
     while(*str) {
         if(*str == '\n') {
             output_regs.eax = 0x0E00 | '\r'; // carriage return
