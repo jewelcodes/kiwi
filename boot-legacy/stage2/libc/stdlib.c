@@ -73,3 +73,27 @@ char *itoa(int value, char *str, int base) {
 char *uitoa(unsigned int value, char *str, int base) {
     return ultoa((unsigned long)value, str, base);
 }
+
+long atol(const char *str) {
+    long result = 0;
+    int sign = 1;
+
+    while(*str == ' ' || *str == '\t') str++;
+    if(*str == '-') {
+        sign = -1;
+        str++;
+    } else if(*str == '+') {
+        str++;
+    }
+
+    while(*str >= '0' && *str <= '9') {
+        result = result * 10 + (*str - '0');
+        str++;
+    }
+
+    return result * sign;
+}
+
+int atoi(const char *str) {
+    return (int)atol(str);
+}
