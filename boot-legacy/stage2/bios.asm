@@ -67,10 +67,10 @@ bios_int:
     mov esi, [ss:bx + 24]
     mov eax, esi
     shr eax, 4
-    mov ds, ax
     mov [.regs_segment], ax
     and esi, 0x0F
     mov [.regs_offset], si
+    mov ds, ax
 
     mov ax, [esi + 36] ; flags
     push ax
@@ -97,9 +97,11 @@ bios_int:
 .interrupt:
     db 0xCD, 0x00 ; second byte is the interrupt number
 
-    mov si, [.regs_segment]
-    mov ds, si
+    xor bp, bp
+    mov ds, bp
+    mov bp, [.regs_segment]
     mov si, [.regs_offset]
+    mov ds, bp
 
     mov [si + 0], eax
     mov [si + 4], ebx
