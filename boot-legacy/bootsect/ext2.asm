@@ -25,8 +25,8 @@
 [bits 16]
 [org 0]
 
-%define SEGMENT                         0x6000
-%define STACK_SEGMENT                   0x7000
+%define SEGMENT                         0x4000
+%define STACK_SEGMENT                   0x5000
 
 %define STAGE2_SEGMENT                  0x0000
 %define STAGE2_OFFSET                   0x0500
@@ -78,13 +78,15 @@ _start:
 
     mov ax, STACK_SEGMENT
     mov ss, ax
+    mov sp, 0xFFF0
+
+    sti
 
     xor ax, ax
-    mov sp, ax
     mov es, ax
 
     ; check if we were passed a partition table by the MBR
-    mov di, boot_partition
+    mov di, boot_partition + 0x7C00
     mov cx, 16 / 2
     cmp byte [si], 0x80
     jnz .no_partition
@@ -96,15 +98,18 @@ _start:
 .no_partition:
     rep stosw           ; zero out the partition table
 
+    sti
+
 .relocate:
     ; relocate to higher memory
+    xor ax, ax
     mov di, ax          ; di = 0
     mov ds, ax          ; ds = 0
     mov ax, SEGMENT
     mov es, ax
     mov si, 0x7C00
-    mov cx, 512 / 2
-    rep movsw
+    mov cx, _end - _start
+    rep movsb
 
     jmp SEGMENT:_main
 
@@ -526,3 +531,4 @@ bgdt:                               resb 4096
 singly_block:                       resb 4096
 block_buffer:                       resb 4096
 
+_end:
