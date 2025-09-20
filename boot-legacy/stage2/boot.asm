@@ -229,6 +229,7 @@ gdt_data64:
 gdt_end:
 
 align 16
+global gdtr
 gdtr:
     .limit:         dw gdt_end - gdt - 1
     .base:          dd gdt

@@ -116,6 +116,11 @@ bios_int:
     mov [si + 36], ax
 
     ; jump back to protected mode
+    extern gdtr
+    xor ax, ax
+    mov ds, ax
+    lgdt [gdtr]
+
     cli
     mov eax, cr0
     or al, 1
