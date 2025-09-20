@@ -146,7 +146,7 @@ _main:
     shl bx, cl
     mov [sectors_per_block], bx
 
-    test al, al
+    and al, al
     jz .bgdt_1024
 
 .bgdt_other:
@@ -159,7 +159,7 @@ _main:
 .bgdt_done:
     ; detect inode size
     mov ax, [superblock + SUPERBLOCK_VERSION_MAJOR]
-    test ax, ax
+    and ax, ax
     jz .default
 
     mov ax, [superblock + SUPERBLOCK_INODE_SIZE]
@@ -183,7 +183,7 @@ _main:
 .list_loop:
     add si, ax
     mov ax, [si + DIRECTORY_ENTRY_LENGTH]
-    test ax, ax
+    and ax, ax
     jz error.not_found
 
     cmp byte [si + DIRECTORY_NAME_LENGTH], file_name_size
@@ -425,8 +425,10 @@ read_inode:
 
 .direct_loop:
     lodsd
-    test eax, eax
-    jz .done
+    and eax, eax
+    jz .check_singly
+
+    push cx
 
     push si
     mov di, [.offset]
@@ -434,7 +436,6 @@ read_inode:
     pop si
     jc error.disk
 
-    push cx
     mov cl, [superblock + SUPERBLOCK_BLOCK_SIZE]
     mov bx, 1024
     shl bx, cl
@@ -447,7 +448,7 @@ read_inode:
     mov si, [.inode_ptr]
     add si, INODE_SINGLY_INDIRECT_PTR
     mov eax, [si]
-    test eax, eax
+    and eax, eax
     jz .done
 
     mov dx, SEGMENT
@@ -467,8 +468,10 @@ read_inode:
 
 .singly_loop:
     lodsd
-    test eax, eax
+    and eax, eax
     jz .done
+
+    push cx
 
     push si
     mov di, [.offset]
@@ -476,7 +479,6 @@ read_inode:
     pop si
     jc error.disk
 
-    push cx
     mov cl, [superblock + SUPERBLOCK_BLOCK_SIZE]
     mov bx, 1024
     shl bx, cl
