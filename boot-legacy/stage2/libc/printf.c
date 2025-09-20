@@ -211,6 +211,15 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
                         }
                         output_index++;
 
+                        if(width_modifier && left_justify) {
+                            int padding = width_modifier - 1;
+                            while(padding-- > 0) {
+                                if(output_index < size) {
+                                    str[output_index] = ' ';
+                                }
+                                output_index++;
+                            }
+                        }
 
                         break;
                     }
