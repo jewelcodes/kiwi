@@ -24,7 +24,7 @@ all: build
 clean:
 	@indent=$$(( $(RECURSION_DEPTH) )); \
 	printf "\x1B[0m %*s🧹  boot-legacy\n" $$indent ""
-	@rm -f $(COBJ) $(STAGE1_OBJ)
+	@rm -f $(COBJ) $(STAGE1_OBJ) $(STAGE2_OBJ)
 
 %.o: %.c
 	@indent=$$(( $(RECURSION_DEPTH) )); \
