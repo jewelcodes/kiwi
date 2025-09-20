@@ -60,8 +60,12 @@ bios_int:
     xor ax, ax
     mov ds, ax
     mov es, ax
+    mov fs, ax
+    mov gs, ax
     mov ax, STACK_SEGMENT
     mov ss, ax
+
+    sti
 
     mov bx, sp
     mov esi, [ss:bx + 24]
@@ -144,6 +148,8 @@ bios_int:
     pop edi
     pop esi
     pop ebx
+
+    cld
 
     mov eax, [esp + 8] ; return the same pointer passed in
     ret
