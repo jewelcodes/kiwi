@@ -45,6 +45,12 @@ _start:
     mov ss, ax
     mov sp, STACK_OFFSET
 
+    ; flush keyboard buffer
+    mov ax, word [0x41C]        ; tail
+    mov word [0x41A], ax        ; head = tail
+
+    sti
+
     ; ensure we have a 64-bit cpu
     mov eax, 0x80000001
     cpuid
