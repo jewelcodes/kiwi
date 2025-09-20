@@ -38,8 +38,13 @@ static int video_mode_count;
 static Registers vbe_regs;
 static VBEControllerInfo controller_info;
 static VBEModeInfo mode_info;
+static EDIDDisplay edid_info;
 
 static int get_mode_info(u16 mode_number, VBEModeInfo *info);
+static int get_edid(EDIDDisplay *edid);
+
+static u16 preferred_width = 0;
+static u16 preferred_height = 0;
 
 int vbe_init(void) {
     memset(&controller_info, 0, sizeof(VBEControllerInfo));
@@ -70,6 +75,8 @@ int vbe_init(void) {
     for(; *modes != 0xFFFF && video_mode_count < MAX_VBE_MODES; modes++) {
         get_mode_info(*modes, &mode_info);
     }
+
+    get_edid(&edid_info);
 
     for(;;);
 }
@@ -103,6 +110,41 @@ static int get_mode_info(u16 mode_number, VBEModeInfo *info) {
             mode_number, mode->width, mode->height, mode->bpp,
             mode->framebuffer, mode->pitch);
     }
+
+    return 0;
+}
+
+static int get_edid(EDIDDisplay *edid) {
+    memset(edid, 0, sizeof(EDIDDisplay));
+
+    vbe_regs.eax = VBE_GET_EDID;
+    vbe_regs.ebx = 1;
+    vbe_regs.ecx = 0;
+    vbe_regs.edx = 0;
+    vbe_regs.es = ((u32) edid >> 4) & 0xFFFF;
+    vbe_regs.edi = ((u32) edid) & 0x0F;
+    bios_int(0x10, &vbe_regs);
+
+    if((vbe_regs.eax & 0xFFFF) != VBE_SUCCESS) {
+        printf("vbe: failed to get EDID; status code = 0x%04X\n",
+            vbe_regs.eax & 0xFFFF);
+        return -1;
+    }
+
+    for(int i = 0; i < 4; i++) {
+        u16 width = edid->timing[i].h_active_low
+            | ((edid->timing[i].h_active_blank_high & 0xF0) << 4);
+        u16 height = edid->timing[i].v_active_low
+            | ((edid->timing[i].v_active_blank_high & 0xF0) << 4);
+        
+        if(width && height && width >= preferred_width && height >= preferred_height) {
+            preferred_width = width;
+            preferred_height = height;
+        }
+    }
+
+    printf("vbe: display preferred resolution = %dx%d\n",
+        preferred_width, preferred_height);
 
     return 0;
 }
