@@ -26,10 +26,24 @@
 
 #include <boot/vbe.h>
 
+#define FONT_WIDTH                  8
+#define FONT_HEIGHT                 16
+#define FONT_MIN_GLYPH              32
+#define FONT_MAX_GLYPH              126
+
+#define CONSOLE_WIDTH               80
+#define CONSOLE_HEIGHT              25
+
 typedef struct Display {
     int vbe_enabled;
     VideoMode *current_mode;
+
+    u16 x, y;
+    u32 bg, fg;
 } Display;
 
 extern Display display;
+extern const u8 font[];
+extern const u32 palette[];
+
 void print(const char *str);

@@ -30,8 +30,29 @@ Display display = {
     .current_mode = NULL
 };
 
+const u32 palette[] = {
+    0x101010,       // black
+    0x3B5BA7,       // blue
+    0x6CA45A,       // green
+    0x4AAE9E,       // cyan
+    0xC74B4B,       // red
+    0xB65CA8,       // magenta
+    0xA6794B,       // brown
+    0xCFCFCF,       // light gray
+    0x5C5C5C,       // dark gray
+    0x547FD4,       // light blue
+    0x9BD97C,       // light green
+    0x6FD5C4,       // light cyan
+    0xE36E6E,       // light red
+    0xD47CC9,       // light magenta
+    0xE9E46C,       // yellow
+    0xF5F5F5        // white
+};
+
 static Registers output_regs;
 static void bios_print(const char *str);
+static void fb_putc(char c);
+static void fb_print(const char *str);
 
 /*
  * print:
@@ -40,15 +61,9 @@ static void bios_print(const char *str);
  */
 
 void print(const char *str) {
-    if(display.vbe_enabled && display.current_mode) return; // todo
+    if(display.vbe_enabled && display.current_mode) fb_print(str);
     else bios_print(str);
 }
-
-/*
- * bios_print:
- * @brief: prints a string using BIOS interrupts
- * @param: str: null-terminated string to print
- */
 
 static void bios_print(const char *str) {
     while(*str) {
@@ -60,3 +75,51 @@ static void bios_print(const char *str) {
         bios_int(0x10, &output_regs);
     }
 }
+
+static void fb_putc(char c) {
+    if(c == '\n') {
+        display.x = 0;
+        display.y++;
+        if(display.y >= CONSOLE_HEIGHT) {
+            display.y = 0;
+        }
+        return;
+    }
+
+    if(display.x >= CONSOLE_WIDTH) {
+        display.x = 0;
+        display.y++;
+        if(display.y >= CONSOLE_HEIGHT) {
+            display.y = 0;
+        }
+    }
+
+    if(c < FONT_MIN_GLYPH || c > FONT_MAX_GLYPH) c = ' ';
+    const u8 *font_data = &font[(c - FONT_MIN_GLYPH) * FONT_HEIGHT];
+
+    u32 y = (display.y * FONT_HEIGHT)
+        + ((display.current_mode->height/2
+        - (CONSOLE_HEIGHT*FONT_HEIGHT)/2));
+    u32 x = (display.x * FONT_WIDTH)
+        + ((display.current_mode->width/2
+        - (CONSOLE_WIDTH*FONT_WIDTH)/2));
+    u32 pitch = display.current_mode->pitch;
+
+    for(int row = 0; row < FONT_HEIGHT; row++) {
+        for(int col = 0; col < FONT_WIDTH; col++) {
+            u32 color = (font_data[row] & (0x80 >> col)) ? display.fg : display.bg;
+            u32 *pixel = (u32 *) (display.current_mode->framebuffer
+                + (y + row) * pitch + (x + col) * 4);
+            *pixel = color;
+        }
+    }
+
+    display.x++;
+}
+
+static void fb_print(const char *str) {
+    while(*str) {
+        fb_putc(*str++);
+    }
+}
+

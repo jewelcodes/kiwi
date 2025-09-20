@@ -46,6 +46,16 @@ static int get_edid(EDIDDisplay *edid);
 static u16 preferred_width = 0;
 static u16 preferred_height = 0;
 
+static u16 fallback_modes[][2] = {
+    {1920, 1080},
+    {1600, 900},
+    {1366, 768},
+    {1360, 768},
+    {1280, 720},
+    {1024, 768},
+    {800, 600}
+};
+
 int vbe_init(void) {
     memset(&controller_info, 0, sizeof(VBEControllerInfo));
     memcpy(controller_info.signature, "VBE2", 4);
@@ -77,6 +87,8 @@ int vbe_init(void) {
     }
 
     get_edid(&edid_info);
+
+    vbe_set_mode(preferred_width, preferred_height, 32);
 
     for(;;);
 }
@@ -147,4 +159,70 @@ static int get_edid(EDIDDisplay *edid) {
         preferred_width, preferred_height);
 
     return 0;
+}
+
+VideoMode *vbe_set_mode(u16 width, u16 height, u8 bpp) {
+    VideoMode *mode = NULL;
+
+    for(int i = 0; i < video_mode_count; i++) {
+        if(video_modes[i].width == width
+            && video_modes[i].height == height
+            && video_modes[i].bpp == bpp) {
+            mode = &video_modes[i];
+            break;
+        }
+    }
+
+    if(!mode) {
+        printf("vbe: requested mode %dx%d@%d not found\n", width, height, bpp);
+        return NULL;
+    }
+
+    vbe_regs.eax = VBE_SET_MODE;
+    vbe_regs.ebx = mode->mode_number | VBE_MODE_LINEAR;
+    vbe_regs.edi = 0;
+    bios_int(0x10, &vbe_regs);
+
+    if((vbe_regs.eax & 0xFFFF) != VBE_SUCCESS) {
+        printf("vbe: failed to set mode %dx%d@%d (0x%04X); status code = 0x%04X\n",
+            mode->width, mode->height, mode->bpp, mode->mode_number,
+            vbe_regs.eax & 0xFFFF);
+        return NULL;
+    }
+
+    display.current_mode = mode;
+    display.vbe_enabled = 1;
+    display.x = 0;
+    display.y = 0;
+
+    display.bg = palette[0]; // black
+    display.fg = palette[15]; // white
+
+    u32 *fb = (u32 *) mode->framebuffer;
+
+    for(int y = 0; y < mode->height; y++) {
+        for(int x = 0; x < mode->width; x++) {
+            fb[x] = palette[0];
+        }
+
+        fb += mode->pitch / 4;
+    }
+
+    printf("vbe: set mode %dx%d@%d (0x%04X) successfully\n",
+        mode->width, mode->height, mode->bpp, mode->mode_number);
+
+    printf("color demo:\n\n   ");
+
+    for(int i = 0; i < 16; i++) {
+        display.bg = palette[i];
+        display.fg = palette[i];
+        printf("%4c", ' '); // clear the line
+    }
+    
+    printf("\n\n");
+    
+    display.bg = palette[0]; // black
+    display.fg = palette[15]; // whitث
+
+    return mode;
 }
