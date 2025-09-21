@@ -88,8 +88,22 @@ int vbe_init(void) {
 
     get_edid(&edid_info);
 
-    vbe_set_mode(preferred_width, preferred_height, 32);
+    if(preferred_width && preferred_height) {
+        if(!vbe_set_mode(preferred_width, preferred_height, 32)) {
+            printf("vbe: failed to set preferred mode %dx%d, trying fallbacks\n",
+                preferred_width, preferred_height);
+        } else {
+            return 0;
+        }
+    }
 
+    for(int i = 0; i < sizeof(fallback_modes)/sizeof(fallback_modes[0]); i++) {
+        if(vbe_set_mode(fallback_modes[i][0], fallback_modes[i][1], 32)) {
+            return 0;
+        }
+    }
+
+    printf("vbe: failed to set any suitable video mode, bailing...\n");
     for(;;);
 }
 
@@ -117,8 +131,10 @@ static int get_mode_info(u16 mode_number, VBEModeInfo *info) {
         mode->mode_number = mode_number;
         mode->framebuffer = info->framebuffer;
         mode->pitch = info->pitch;
+        snprintf(mode->label, sizeof(mode->label), "%dx%dx%d",
+            mode->width, mode->height, mode->bpp);
 
-        printf("vbe: found mode 0x%04X: %dx%d@%d, framebuffer=0x%08X, pitch=%d\n",
+        printf("vbe: found mode 0x%04X: %dx%dx%d, framebuffer=0x%08X, pitch=%d\n",
             mode_number, mode->width, mode->height, mode->bpp,
             mode->framebuffer, mode->pitch);
     }
@@ -174,7 +190,7 @@ VideoMode *vbe_set_mode(u16 width, u16 height, u8 bpp) {
     }
 
     if(!mode) {
-        printf("vbe: requested mode %dx%d@%d not found\n", width, height, bpp);
+        printf("vbe: requested mode %dx%dx%d not found\n", width, height, bpp);
         return NULL;
     }
 
@@ -184,7 +200,7 @@ VideoMode *vbe_set_mode(u16 width, u16 height, u8 bpp) {
     bios_int(0x10, &vbe_regs);
 
     if((vbe_regs.eax & 0xFFFF) != VBE_SUCCESS) {
-        printf("vbe: failed to set mode %dx%d@%d (0x%04X); status code = 0x%04X\n",
+        printf("vbe: failed to set mode %dx%dx%d (0x%04X); status code = 0x%04X\n",
             mode->width, mode->height, mode->bpp, mode->mode_number,
             vbe_regs.eax & 0xFFFF);
         return NULL;
@@ -198,31 +214,6 @@ VideoMode *vbe_set_mode(u16 width, u16 height, u8 bpp) {
     display.bg = palette[0]; // black
     display.fg = palette[15]; // white
 
-    u32 *fb = (u32 *) mode->framebuffer;
-
-    for(int y = 0; y < mode->height; y++) {
-        for(int x = 0; x < mode->width; x++) {
-            fb[x] = palette[0];
-        }
-
-        fb += mode->pitch / 4;
-    }
-
-    printf("vbe: set mode %dx%d@%d (0x%04X) successfully\n",
-        mode->width, mode->height, mode->bpp, mode->mode_number);
-
-    printf("color demo:\n\n   ");
-
-    for(int i = 0; i < 16; i++) {
-        display.bg = palette[i];
-        display.fg = palette[i];
-        printf("%4c", ' '); // clear the line
-    }
-    
-    printf("\n\n");
-    
-    display.bg = palette[0]; // black
-    display.fg = palette[15]; // whitث
-
+    clear_screen();
     return mode;
 }
