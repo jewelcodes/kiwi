@@ -147,6 +147,9 @@ typedef struct VideoMode {
 } VideoMode;
 
 extern VideoMode video_modes[];
+extern u32 video_memory;
+extern const char *video_controller;
+
 int vbe_init(void);
 VideoMode *vbe_set_mode(u16 width, u16 height, u8 bpp);
 void vbe_configure(void);

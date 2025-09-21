@@ -34,6 +34,8 @@
 #define MIN_BPP                 32
 
 VideoMode video_modes[MAX_VBE_MODES];
+const char *video_controller;
+u32 video_memory;
 
 static int video_mode_count;
 static Registers vbe_regs;
@@ -78,6 +80,10 @@ int vbe_init(void) {
         printf("vbe: VBE version 2.0 or higher is required\n");
         for(;;);
     }
+
+    video_memory = controller_info.memory * 64 * 1024;
+    video_controller = (const char *) ((controller_info.oem_segment << 4)
+        + controller_info.oem_offset);
 
     video_mode_count = 0;
     u16 *modes = (u16 *) ((controller_info.mode_segment << 4)
