@@ -25,6 +25,7 @@
 #include <boot/output.h>
 #include <boot/bios.h>
 #include <boot/vbe.h>
+#include <boot/menu.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -216,4 +217,48 @@ VideoMode *vbe_set_mode(u16 width, u16 height, u8 bpp) {
 
     clear_screen();
     return mode;
+}
+
+
+void vbe_configure(void) {
+    MenuState menu;
+
+    const char *items[MAX_VBE_MODES];
+    for(int i = 0; i < video_mode_count; i++) {
+        items[i] = video_modes[i].label;
+    }
+
+    menu.title = "Kiwi Boot Manager - Select Video Mode";
+    menu.items = items;
+    menu.count = video_mode_count;
+
+    for(int i = 0; i < video_mode_count; i++) {
+        if(video_modes[i].width == display.current_mode->width
+            && video_modes[i].height == display.current_mode->height
+            && video_modes[i].bpp == display.current_mode->bpp) {
+            menu.selected = i;
+            break;
+        }
+    }
+
+    if(menu.count > MAX_VISIBLE_ROWS) {
+        menu.top_visible_index = menu.selected - MAX_VISIBLE_ROWS / 2;
+        if(menu.top_visible_index < 0) menu.top_visible_index = 0;
+    } else {
+        menu.top_visible_index = 0;
+    }
+
+    for(;;) {
+        int selection = drive_menu(&menu, 1);
+        if(selection >= 0 && selection < video_mode_count) {
+            vbe_set_mode(video_modes[selection].width,
+                video_modes[selection].height,
+                video_modes[selection].bpp);
+        }
+
+        if(selection == -1) {
+            // user pressed escape
+            return;
+        }
+    }
 }

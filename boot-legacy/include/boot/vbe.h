@@ -143,8 +143,10 @@ typedef struct VideoMode {
     u16 width, height, mode_number;
     u8 bpp;
     u32 framebuffer, pitch;
+    char label[32];
 } VideoMode;
 
 extern VideoMode video_modes[];
 int vbe_init(void);
 VideoMode *vbe_set_mode(u16 width, u16 height, u8 bpp);
+void vbe_configure(void);
