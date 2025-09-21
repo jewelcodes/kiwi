@@ -26,6 +26,13 @@
 
 #include <kiwi/types.h>
 
+#define SCANCODE_UP            0x48
+#define SCANCODE_DOWN          0x50
+#define SCANCODE_LEFT          0x4B
+#define SCANCODE_RIGHT         0x4D
+#define SCANCODE_ENTER         0x1C
+#define SCANCODE_ESCAPE        0x01
+
 typedef struct Character {
     u8 ascii;
     u8 scan_code;
