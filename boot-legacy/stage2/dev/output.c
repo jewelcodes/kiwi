@@ -37,7 +37,7 @@ const u32 palette[] = {
     0x4AAE9E,       // cyan
     0xC74B4B,       // red
     0xB65CA8,       // magenta
-    0xA6794B,       // brown
+    0x8F673D,       // brown
     0xCFCFCF,       // light gray
     0x5C5C5C,       // dark gray
     0x547FD4,       // light blue
@@ -123,3 +123,50 @@ static void fb_print(const char *str) {
     }
 }
 
+void clear_screen(void) {
+    if(!display.vbe_enabled || !display.current_mode) return;
+
+    u32 *fb = (u32 *) display.current_mode->framebuffer;
+
+    for(int y = 0; y < display.current_mode->height; y++) {
+        for(int x = 0; x < display.current_mode->width; x++) {
+            fb[x] = display.bg;
+        }
+
+        fb += display.current_mode->pitch / 4;
+    }
+}
+
+void dim_screen(void) {
+    if(!display.vbe_enabled || !display.current_mode) return;
+
+    u32 *fb = (u32 *) display.current_mode->framebuffer;
+
+    for(int y = 0; y < display.current_mode->height; y++) {
+        for(int x = 0; x < display.current_mode->width; x++) {
+            fb[x] = (fb[x] >> 1) & 0x7F7F7F;
+        }
+
+        fb += display.current_mode->pitch / 4;
+    }
+}
+
+void fill_rect(u32 x, u32 y, u32 width, u32 height, u32 color) {
+    if(!display.vbe_enabled || !display.current_mode) return;
+
+    if(x + width > display.current_mode->width)
+        width = display.current_mode->width - x;
+    if(y + height > display.current_mode->height)
+        height = display.current_mode->height - y;
+
+    u32 *fb = (u32 *) (display.current_mode->framebuffer
+        + y * display.current_mode->pitch + x * 4);
+
+    for(u32 row = 0; row < height; row++) {
+        for(u32 col = 0; col < width; col++) {
+            fb[col] = color;
+        }
+
+        fb += display.current_mode->pitch / 4;
+    }
+}
