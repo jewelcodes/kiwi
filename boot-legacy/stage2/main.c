@@ -23,10 +23,41 @@
  */
 
 #include <boot/vbe.h>
+#include <boot/memory.h>
 #include <boot/menu.h>
+#include <stdio.h>
+
+static void about(void) {
+    dialog("About Kiwi",
+        "Kiwi is a prototype high-performance general-purpose\n"
+        "operating system built entirely from scratch.\n\n"
+        "Kiwi is free and open-source software released under the\n"
+        "MIT License. Visit https://github.com/jewelcodes/kiwi\n"
+        "for more info and source code.",
+        56, 11);
+}
+
+static void sysinfo(void) {
+    char buffer[4096];
+
+    snprintf(buffer, sizeof(buffer),
+        "Total memory: %llu KB (%llu MB)\n"
+        "Usable memory: %llu KB (%llu MB)\n"
+        "Hardware-reserved memory: %llu KB (%llu MB)\n\n"
+        "VESA BIOS OEM: %s\n"
+        "Video memory: %u KB (%u MB)",
+        total_memory / 1024, total_memory / (1024 * 1024),
+        total_usable_memory / 1024, total_usable_memory / (1024 * 1024),
+        (total_memory - total_usable_memory) / 1024,
+        (total_memory - total_usable_memory) / (1024 * 1024),
+        video_controller, video_memory / 1024, video_memory / (1024 * 1024));
+
+    dialog("System Information", buffer, 58, 11);
+}
 
 int main(void) {
     vbe_init();
+    detect_memory();
 
     MenuState menu;
 
@@ -35,7 +66,8 @@ int main(void) {
         "Kiwi (debug)",       // 1
         NULL,                 // 2 - separator
         "Configure display",  // 3
-        "About Kiwi",         // 4
+        "System information", // 4
+        "About Kiwi",         // 5
     };
 
     menu.title = "Kiwi Boot Manager";
@@ -47,16 +79,8 @@ int main(void) {
     for(;;) {
         int selection = drive_menu(&menu, 0);
         if(selection == 3) vbe_configure();
-
-        else if(selection == 4) {
-            dialog("About Kiwi",
-                "Kiwi is a prototype high-performance general-purpose\n"
-                "operating system built entirely from scratch.\n\n"
-                "Kiwi is free and open-source software released under the\n"
-                "MIT License. Visit https://github.com/jewelcodes/kiwi\n"
-                "for more info and source code."
-            "", 56, 11);
-        }
+        else if(selection == 4) sysinfo();
+        else if(selection == 5) about();
     }
 
     for(;;);
