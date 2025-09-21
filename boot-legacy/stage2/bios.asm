@@ -101,6 +101,8 @@ bios_int:
 .interrupt:
     db 0xCD, 0x00 ; second byte is the interrupt number
 
+    pushf ; push before xor because we will clobber flags
+
     xor bp, bp
     mov ds, bp
     mov bp, [.regs_segment]
@@ -114,8 +116,7 @@ bios_int:
     mov [si + 20], edi
     mov [si + 24], ebp
 
-    pushf
-    pop ax
+    pop ax  ; flags
     and eax, 0xFFFF
     mov [si + 36], ax
 
