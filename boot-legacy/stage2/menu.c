@@ -81,7 +81,7 @@ static void render_menu(MenuState *state, int allow_escape) {
     else print_centered("<Up/Down> to navigate, <Enter> to select, <Esc> to go back.");
 
     display.y += 2;
-    print_centered("Kiwi is free and open-source software under the MIT License.");
+    print_centered("Kiwi is free and open-source software released under the MIT License.");
 }
 
 int drive_menu(MenuState *state, int allow_escape) {
