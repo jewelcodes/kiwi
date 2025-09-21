@@ -22,21 +22,41 @@
  * SOFTWARE.
  */
 
-#include <kiwi/types.h>
+#include <boot/vbe.h>
+#include <boot/menu.h>
 
 int main(void) {
-    u8 *screen = (u8 *) 0xB8000; // vga text mode buffer
-    for(int i = 0; i < 80 * 25; i++) {
-        screen[i * 2] = 0;
-        screen[i * 2 + 1] = 0xAA; // light green
-    }
+    vbe_init();
 
-    const char *str = "hello world from a C program running on \"bare metal\"!";
-    screen += (80 * 12 + 13) * 2; // center of the screen
+    MenuState menu;
 
-    for(int i = 0; str[i] != '\0'; i++) {
-        screen[i * 2] = str[i];
-        screen[i * 2 + 1] = 0xF2; // green on white
+    const char *items[] = {
+        "Kiwi (normal boot)", // 0
+        "Kiwi (debug)",       // 1
+        NULL,                 // 2 - separator
+        "Configure display",  // 3
+        "About Kiwi",         // 4
+    };
+
+    menu.title = "Kiwi Boot Manager";
+    menu.items = items;
+    menu.count = sizeof(items) / sizeof(items[0]);
+    menu.selected = 0;
+    menu.top_visible_index = 0;
+
+    for(;;) {
+        int selection = drive_menu(&menu, 0);
+        if(selection == 3) vbe_configure();
+
+        else if(selection == 4) {
+            dialog("About Kiwi",
+                "Kiwi is a prototype high-performance general-purpose\n"
+                "operating system built entirely from scratch.\n\n"
+                "Kiwi is free and open-source software released under the\n"
+                "MIT License. Visit https://github.com/jewelcodes/kiwi\n"
+                "for more info and source code."
+            "", 56, 11);
+        }
     }
 
     for(;;);
