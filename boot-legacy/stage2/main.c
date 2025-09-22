@@ -25,6 +25,7 @@
 #include <boot/vbe.h>
 #include <boot/memory.h>
 #include <boot/menu.h>
+#include <boot/disk.h>
 #include <stdio.h>
 
 static void about(void) {
@@ -58,6 +59,7 @@ static void sysinfo(void) {
 int main(void) {
     vbe_init();
     detect_memory();
+    disk_init();
 
     MenuState menu;
 
