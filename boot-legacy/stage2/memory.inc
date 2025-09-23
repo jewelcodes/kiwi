@@ -22,7 +22,7 @@
 ; SOFTWARE.
 ;
 
-%define STACK_SEGMENT           0x6000
+%define STACK_SEGMENT           0x8000
 %define STACK_OFFSET            0xFFF0
 
 %define CODE32_SEGMENT          0x08
