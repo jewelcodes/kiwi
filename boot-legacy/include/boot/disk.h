@@ -69,8 +69,9 @@ typedef struct Drive {
     // TODO: GPT partitions
 } Drive;
 
+extern Drive boot_drive;
 extern Drive drives[];
 extern int drive_count;
 
 int disk_init(void);
-int disk_read(u8 drive, u64 lba, u16 sectors, void *buffer);
+int disk_read(Drive *drive, u64 lba, u16 sectors, void *buffer);
