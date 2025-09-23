@@ -102,7 +102,7 @@ int disk_read(Drive *drive, u64 lba, u16 sectors, void *buffer) {
         dap.sectors = 1;
         dap.offset = ((u32) disk_buffer) & 0x0F;
         dap.segment = (((u32) disk_buffer) >> 4) & 0xFFFF;
-        dap.lba = lba;
+        dap.lba = lba + i;
 
         disk_regs.eax = BIOS_DISK_READ << 8;
         disk_regs.edx = drive->drive_number;
