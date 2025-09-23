@@ -31,6 +31,8 @@
 #define BIOS_DISK_READ              0x42
 #define BIOS_DISK_GET_INFO          0x48
 
+#define MBR_PARTITION_OFFSET        446
+
 typedef struct BIOSDriveInfo {
     u16 buffer_size;
     u16 info;
@@ -51,13 +53,24 @@ typedef struct DiskAddressPacket {
     u64 lba;
 } __attribute__((packed)) DiskAddressPacket;
 
+typedef struct MBRPartition {
+    u8 bootable;
+    u8 start_chs[3];
+    u8 type;
+    u8 end_chs[3];
+    u32 start_lba;
+    u32 sectors;
+} __attribute__((packed)) MBRPartition;
+
 typedef struct Drive {
     BIOSDriveInfo info;
     u8 drive_number;
+    MBRPartition mbr_partitions[4];
+    // TODO: GPT partitions
 } Drive;
 
 extern Drive drives[];
 extern int drive_count;
 
 int disk_init(void);
-int disk_read(int index, u64 lba, u16 sectors, void *buffer);
+int disk_read(u8 drive, u64 lba, u16 sectors, void *buffer);

@@ -25,6 +25,7 @@
 #pragma once
 
 #include <kiwi/types.h>
+#include <boot/disk.h>
 
 typedef struct Registers {
     u32 eax;        // 0
@@ -39,4 +40,11 @@ typedef struct Registers {
     u32 eflags;     // 36 
 } Registers;
 
+typedef struct BIOSBootInfo {
+    u8 boot_disk;
+    MBRPartition boot_partition;
+} __attribute__((packed)) BIOSBootInfo;
+
 Registers *bios_int(u8 int_no, Registers *regs);
+
+extern BIOSBootInfo bios_boot_info;

@@ -39,7 +39,7 @@ int disk_init(void) {
 
         disk_regs.eax = BIOS_DISK_GET_INFO << 8;
         disk_regs.edx = i | 0x80;   // hdd
-        disk_regs.ds = (((u32) info) >> 4) & 0x0FFF;
+        disk_regs.ds = (((u32) info) >> 4) & 0xFFFF;
         disk_regs.esi = ((u32) info) & 0x0F;
 
         bios_int(0x13, &disk_regs);
@@ -52,4 +52,30 @@ int disk_init(void) {
     }
 
     return drive_count;
+}
+
+int disk_read(u8 drive, u64 lba, u16 sectors, void *buffer) {
+    if(!sectors) {
+        return -1;
+    }
+
+    DiskAddressPacket dap;
+    dap.size = sizeof(DiskAddressPacket);
+    dap.reserved = 0;
+    dap.sectors = sectors;
+    dap.offset = ((u32) buffer) & 0x0F;
+    dap.segment = (((u32) buffer) >> 4) & 0xFFFF;
+    dap.lba = lba;
+
+    disk_regs.eax = BIOS_DISK_READ << 8;
+    disk_regs.edx = drive;
+    disk_regs.ds = (((u32) &dap) >> 4) & 0xFFFF;
+    disk_regs.esi = ((u32) &dap) & 0x0F;
+    bios_int(0x13, &disk_regs);
+
+    if(disk_regs.eflags & 1) {
+        return -1;
+    }
+
+    return 0;
 }
