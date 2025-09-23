@@ -81,3 +81,64 @@ usize load_file(const char *path, void *buffer, usize size) {
 
     for(;;);
 }
+
+int parse_path(const char *path, int index, char *dest, usize dest_size) {
+    if(!path || !strlen(path)) {
+        return 0;
+    }
+
+    int component_count = 0;
+    const char *original_path = path;
+
+    while(*path) {
+        while(*path == '/') {
+            path++;
+        }
+
+        if(!*path) {
+            break;
+        }
+
+        component_count++;
+
+        while(*path && *path != '/') {
+            path++;
+        }
+    }
+
+    if(!dest || !dest_size) {
+        return component_count;
+    }
+
+    if(index < 0 || index >= component_count) {
+        return -1;
+    }
+
+    int current_index = 0;
+    path = original_path;
+
+    while(*path) {
+        while(*path == '/') {
+            path++;
+        }
+
+        if(!*path) break;
+
+        if(current_index == index) {
+            int len = 0;
+            while(*path && *path != '/' && len + 1 < dest_size) {
+                dest[len++] = *path++;
+            }
+            dest[len] = 0;
+            break;
+        }
+
+        current_index++;
+
+        while(*path && *path != '/') {
+            path++;
+        }
+    }
+
+    return component_count;
+}

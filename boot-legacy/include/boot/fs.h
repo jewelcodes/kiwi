@@ -32,4 +32,5 @@
 
 // more file systems will be added someday :tm:
 
+int parse_path(const char *path, int index, char *dest, usize dest_size);
 usize load_file(const char *path, void *buffer, usize size);
