@@ -176,18 +176,45 @@ _main:
     call read_inode
     jc error.disk
 
-    ; list all files
+    ; find the directory
     mov si, block_buffer
     xor ax, ax
 
-.list_loop:
+.dir_loop:
+    add si, ax
+    mov ax, [si + DIRECTORY_ENTRY_LENGTH]
+    and ax, ax
+    jz error.not_found
+
+    cmp byte [si + DIRECTORY_NAME_LENGTH], dir_name_size
+    jnz .dir_loop
+
+    mov cx, dir_name_size
+    mov di, dir_name
+    push si
+    add si, DIRECTORY_NAME
+    rep cmpsb
+    pop si
+    jnz .dir_loop
+
+    ; found the directory, load this inode
+    mov eax, [si + DIRECTORY_INODE]
+    mov di, block_buffer
+    call read_inode
+    jc error.disk
+
+    ; now look for the file
+    mov si, block_buffer
+    xor ax, ax
+
+.file_loop:
     add si, ax
     mov ax, [si + DIRECTORY_ENTRY_LENGTH]
     and ax, ax
     jz error.not_found
 
     cmp byte [si + DIRECTORY_NAME_LENGTH], file_name_size
-    jnz .list_loop
+    jnz .file_loop
 
     mov cx, file_name_size
     mov di, file_name
@@ -195,7 +222,7 @@ _main:
     add si, DIRECTORY_NAME
     rep cmpsb
     pop si
-    jnz .list_loop
+    jnz .file_loop
 
     ; found the file, load this inode
     mov eax, [si + DIRECTORY_INODE]
@@ -323,7 +350,7 @@ error:
 newline:                            db 13, 10, 0
 disk_error:                         db "disk I/O error", 0
 superblock_error:                   db "bad superblock", 0
-not_found_error:                    db "boot.bin not found", 0
+not_found_error:                    db "/boot/bootman.bin not found", 0
 
 padding1:                           times 510 - ($ - $$) db 0
 boot_signature:                     dw 0xAA55
@@ -501,7 +528,9 @@ read_inode:
     .offset:                        resb 2
     .type:                          resb 1
 
-    file_name:                      db "boot.bin"
+    dir_name:                       db "boot"
+    dir_name_size:                  equ $ - dir_name
+    file_name:                      db "bootman.bin"
     file_name_size:                 equ $ - file_name
 
 padding2:                           times 1024 - ($ - $$) db 0

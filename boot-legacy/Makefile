@@ -41,10 +41,10 @@ clean:
 	printf "\x1B[0m %*s🔩  $<\n" $$indent ""
 	@$(ASM) -o $@ ${STAGE1_ASMFLAGS} $<
 
-boot.bin: $(STAGE2_OBJ) $(COBJ)
+bootman.bin: $(STAGE2_OBJ) $(COBJ)
 	@indent=$$(( $(RECURSION_DEPTH) )); \
-	printf "\x1B[0m %*s🔧  linking boot.bin\n" $$indent ""; \
-	$(LD) -o boot.bin ${LDFLAGS} $(STAGE2_OBJ) $(COBJ)
+	printf "\x1B[0m %*s🚀  \x1B[1mbootman.bin\x1B[0m\n" $$indent ""; \
+	$(LD) -o bootman.bin ${LDFLAGS} $(STAGE2_OBJ) $(COBJ)
 
 build:
 	@indent=$$(( $(RECURSION_DEPTH) )); \
@@ -71,4 +71,4 @@ build:
 		printf "\x1B[0m %*s✅  built \x1B[1m$(MODULE)\x1B[0m in %.2fs\n" $$indent "" $$dur; \
 	fi
 
-$(MODULE): $(STAGE1_OBJ) boot.bin
+$(MODULE): $(STAGE1_OBJ) bootman.bin
