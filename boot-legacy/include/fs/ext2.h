@@ -30,6 +30,22 @@
 #define EXT2_SUPERBLOCK_OFFSET          1024
 #define EXT2_MAGIC                      0xEF53
 
+#define EXT2_INODE_FIFO                 0x1000
+#define EXT2_INODE_CHAR                 0x2000
+#define EXT2_INODE_DIRECTORY            0x4000
+#define EXT2_INODE_BLOCK                0x6000
+#define EXT2_INODE_REGULAR              0x8000
+#define EXT2_INODE_SYMLINK              0xA000
+#define EXT2_INODE_SOCKET               0xC000
+
+#define EXT2_IS_FIFO(mode)              (((mode) & 0xF000) == EXT2_INODE_FIFO)
+#define EXT2_IS_CHAR(mode)              (((mode) & 0xF000) == EXT2_INODE_CHAR)
+#define EXT2_IS_DIRECTORY(mode)         (((mode) & 0xF000) == EXT2_INODE_DIRECTORY)
+#define EXT2_IS_BLOCK(mode)             (((mode) & 0xF000) == EXT2_INODE_BLOCK)
+#define EXT2_IS_REGULAR(mode)           (((mode) & 0xF000) == EXT2_INODE_REGULAR)
+#define EXT2_IS_SYMLINK(mode)           (((mode) & 0xF000) == EXT2_INODE_SYMLINK)
+#define EXT2_IS_SOCKET(mode)            (((mode) & 0xF000) == EXT2_INODE_SOCKET)
+
 typedef struct Ext2Superblock {
     u32 total_inodes;
     u32 total_blocks;

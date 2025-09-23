@@ -23,6 +23,7 @@
  */
 
 #include <boot/disk.h>
+#include <boot/fs.h>
 #include <fs/ext2.h>
 #include <string.h>
 #include <stdio.h>
@@ -30,6 +31,7 @@
 static u8 superblock_buffer[4096];
 static u8 inode_block[4096];
 static u8 bgdt_buffer[4096];
+static char path_buffer[128];
 
 static Ext2Superblock *read_superblock(Drive *drive, int partition) {
     if(!drive || partition < 0 || partition >= 4) {
@@ -77,7 +79,8 @@ static int read_block(Drive *drive, int partition, u32 block, void *buffer) {
         drive->info.bytes_per_sector, buffer);
 }
 
-static usize read_inode(Drive *drive, int partition, u32 inode_num, void *buffer, usize size) {
+static usize read_inode(Drive *drive, int partition, int directory,
+                        u32 inode_num, void *buffer, usize size) {
     if(!drive || partition < 0 || partition >= 4) {
         return 0;
     }
@@ -96,8 +99,8 @@ static usize read_inode(Drive *drive, int partition, u32 inode_num, void *buffer
         return 0;
     }
 
-    Ext2BlockGroupDescriptor *bg_desc = (Ext2BlockGroupDescriptor *) ((void *) bgdt_buffer + 
-        (block_group * sizeof(Ext2BlockGroupDescriptor)));
+    Ext2BlockGroupDescriptor *bg_desc = (Ext2BlockGroupDescriptor *) ((void *)
+        bgdt_buffer + (block_group * sizeof(Ext2BlockGroupDescriptor)));
 
     u32 inode_table_block = bg_desc->inode_table;
     u32 block_offset = (index_within_group * inode_size) / block_size;
@@ -108,6 +111,15 @@ static usize read_inode(Drive *drive, int partition, u32 inode_num, void *buffer
     }
 
     Ext2Inode *inode = (Ext2Inode *) ((void *) inode_block + offset_in_block);
+
+    if(directory && !EXT2_IS_DIRECTORY(inode->mode)) {
+        return 0;
+    }
+
+    if(!directory && !EXT2_IS_REGULAR(inode->mode)) {
+        return 0;
+    }
+
     usize read_bytes = 0;
 
     for(int i = 0; i < 12; i++) {
@@ -136,37 +148,53 @@ usize ext2_load_file(Drive *drive, int partition, const char *path, void *buffer
         return 0;
     }
 
-    usize dir_size = read_inode(drive, partition, EXT2_ROOT_INODE, buffer, size);
+    usize dir_size = read_inode(drive, partition, 1, EXT2_ROOT_INODE, buffer, size);
     if(!dir_size) {
         return 0;
     }
 
-begin_search:
-    // TODO: actually parse the path but for now this is a demo listing
+    int components = parse_path(path, 0, NULL, 0);
+    if(components <= 0) {
+        return 0;
+    }
 
-    printf("ext2 root directory listing:\n");
-    Ext2DirEntry *entry = (Ext2DirEntry *) buffer;
+    int current_component = 0;
+
+search:
+    if(parse_path(path, current_component, path_buffer, sizeof(path_buffer)) != components) {
+        return 0;
+    }
+    
     usize offset = 0;
     while(offset < dir_size) {
-        if(offset + sizeof(Ext2DirEntry) > dir_size) {
-            return 0;
-        }
-
+        Ext2DirEntry *entry = (Ext2DirEntry *) ((u8 *) buffer + offset);
         if(!entry->record_length) {
-            return 0;
+            break;
         }
 
         if(!entry->inode) {
             offset += entry->record_length;
-            entry = (Ext2DirEntry *) ((u8 *) entry + entry->record_length);
             continue;
         }
 
-        printf(" %s\n", entry->name);
+        if((entry->name_length == strlen(path_buffer))
+            && !memcmp(entry->name, path_buffer, entry->name_length)) {
+            if(current_component == components - 1) {
+                return read_inode(drive, partition, 0, entry->inode, buffer, size);
+            } else {
+                // subdirectory
+                dir_size = read_inode(drive, partition, 1, entry->inode, buffer, size);
+                if(!dir_size) {
+                    return 0;
+                }
+
+                current_component++;
+                goto search;
+            }
+        }
+
         offset += entry->record_length;
-        entry = (Ext2DirEntry *) ((u8 *) entry + entry->record_length);
     }
 
-    for(;;);
     return 0;
 }
