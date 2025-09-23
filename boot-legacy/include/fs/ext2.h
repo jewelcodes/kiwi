@@ -26,6 +26,7 @@
 
 #include <kiwi/types.h>
 
+#define EXT2_ROOT_INODE                 2
 #define EXT2_SUPERBLOCK_OFFSET          1024
 #define EXT2_MAGIC                      0xEF53
 
@@ -55,7 +56,67 @@ typedef struct Ext2Superblock {
     u32 major_version;
     u16 reserved_user_id;
     u16 reserved_group_id;
+
+    u32 first_inode;
+    u16 inode_size;
+    u16 block_group_number;
+    u32 optional_features;
+    u32 required_features;
+    u32 read_only_features;
+    u8 id[16];
+    s8 volume_name[16];
+    s8 last_mount_path[64];
+    u32 compression_algorithm;
+    u8 preallocated_blocks;
+    u8 preallocated_dir_blocks;
+    u16 reserved;
+    s8 journal_id[16];
+    u32 journal_inode;
+    u32 journal_device;
+    u32 orphan_inode_list;
 } __attribute__((packed)) Ext2Superblock;
+
+typedef struct Ext2BlockGroupDescriptor {
+    u32 block_bitmap;
+    u32 inode_bitmap;
+    u32 inode_table;
+    u16 free_blocks_count;
+    u16 free_inodes_count;
+    u16 used_dirs_count;
+    u16 pad;
+    u8 reserved[12];
+} __attribute__((packed)) Ext2BlockGroupDescriptor;
+
+typedef struct Ext2Inode {
+    u16 mode;
+    u16 user_id;
+    u32 size_low;
+    u32 access_time;
+    u32 creation_time;
+    u32 modification_time;
+    u32 deletion_time;
+    u16 group_id;
+    u16 hard_link_count;
+    u32 disk_sectors;
+    u32 flags;
+    u32 os_specific1;
+    u32 direct_pointers[12];
+    u32 singly_indirect;
+    u32 doubly_indirect;
+    u32 triply_indirect;
+    u32 generation;
+    u32 size_high;
+    u32 fragment_address;
+    u8 os_specific2[12];
+} __attribute__((packed)) Ext2Inode;
+
+typedef struct Ext2DirEntry {
+    u32 inode;
+    u16 record_length;
+    u8 name_length;
+    u8 file_type;
+    char name[];
+} __attribute__((packed)) Ext2DirEntry;
 
 int is_ext2(Drive *drive, int partition);
 usize ext2_load_file(Drive *drive, int partition, const char *path, void *buffer, usize size);

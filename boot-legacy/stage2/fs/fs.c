@@ -65,7 +65,6 @@ static int fs_type(Drive *drive, int partition) {
 }
 
 usize load_file(const char *path, void *buffer, usize size) {
-    printf("Loading file: %s\n", path);
     Drive *drive;
     int partition;
 
@@ -77,7 +76,7 @@ usize load_file(const char *path, void *buffer, usize size) {
 
     int type = fs_type(drive, partition);
     if(type == FS_TYPE_EXT2) {
-        printf("TODO: ext2 load file\n");
+        return ext2_load_file(drive, partition, path + path_offset, buffer, size);
     }
 
     for(;;);
