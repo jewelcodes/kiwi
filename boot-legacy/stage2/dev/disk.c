@@ -95,21 +95,27 @@ int disk_read(Drive *drive, u64 lba, u16 sectors, void *buffer) {
     }
 
     DiskAddressPacket dap;
-    dap.size = sizeof(DiskAddressPacket);
-    dap.reserved = 0;
-    dap.sectors = sectors;
-    dap.offset = ((u32) buffer) & 0x0F;
-    dap.segment = (((u32) buffer) >> 4) & 0xFFFF;
-    dap.lba = lba;
 
-    disk_regs.eax = BIOS_DISK_READ << 8;
-    disk_regs.edx = drive->drive_number;
-    disk_regs.ds = (((u32) &dap) >> 4) & 0xFFFF;
-    disk_regs.esi = ((u32) &dap) & 0x0F;
-    bios_int(0x13, &disk_regs);
+    for(u16 i = 0; i < sectors; i++) {
+        dap.size = sizeof(DiskAddressPacket);
+        dap.reserved = 0;
+        dap.sectors = 1;
+        dap.offset = ((u32) disk_buffer) & 0x0F;
+        dap.segment = (((u32) disk_buffer) >> 4) & 0xFFFF;
+        dap.lba = lba;
 
-    if(disk_regs.eflags & 1) {
-        return -1;
+        disk_regs.eax = BIOS_DISK_READ << 8;
+        disk_regs.edx = drive->drive_number;
+        disk_regs.ds = (((u32) &dap) >> 4) & 0xFFFF;
+        disk_regs.esi = ((u32) &dap) & 0x0F;
+        bios_int(0x13, &disk_regs);
+
+        if(disk_regs.eflags & 1) {
+            return -1;
+        }
+
+        memcpy((u8 *) buffer + (i * drive->info.bytes_per_sector),
+            disk_buffer, drive->info.bytes_per_sector);
     }
 
     return 0;
