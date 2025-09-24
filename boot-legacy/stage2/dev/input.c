@@ -30,7 +30,11 @@ Registers input_regs;
 Character *input_read(Character *ch) {
     input_regs.eax = 0;             // read key (blocking)
     bios_int(0x16, &input_regs);
-    ch->ascii = input_regs.eax & 0xFF;
-    ch->scan_code = (input_regs.eax >> 8) & 0xFF;
+
+    if(ch) {
+        ch->ascii = input_regs.eax & 0xFF;
+        ch->scan_code = (input_regs.eax >> 8) & 0xFF;
+    }
+
     return ch;
 }
