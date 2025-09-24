@@ -10,7 +10,8 @@ clean:
 	new_depth=$$(( $(RECURSION_DEPTH) + 1 )); \
 	printf "\x1B[0m %*s🧹  $(MODULE)\n" $$indent ""; \
 	$(MAKE) --no-print-directory RECURSION_DEPTH=$$new_depth -C boot-legacy clean; \
-	$(MAKE) --no-print-directory RECURSION_DEPTH=$$new_depth -C pulse clean;
+	$(MAKE) --no-print-directory RECURSION_DEPTH=$$new_depth -C pulse clean; \
+	$(MAKE) --no-print-directory RECURSION_DEPTH=$$new_depth -C kernel clean; \
 
 build:
 	@indent=$$(( $(RECURSION_DEPTH) )); \
