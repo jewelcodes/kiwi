@@ -26,6 +26,8 @@
 #include <boot/memory.h>
 #include <boot/menu.h>
 #include <boot/disk.h>
+#include <boot/acpi.h>
+#include <boot/protocol/kiwi.h>
 #include <stdio.h>
 
 static void about(void) {
@@ -60,6 +62,7 @@ int main(void) {
     vbe_init();
     detect_memory();
     disk_init();
+    acpi_init();
 
     MenuState menu;
 
@@ -80,10 +83,10 @@ int main(void) {
 
     for(;;) {
         int selection = drive_menu(&menu, 0);
-        if(selection == 3) vbe_configure();
+        if(selection == 0) boot_kiwi("boot:/boot/kiwi", NULL);
+        else if(selection == 1) boot_kiwi("boot:/boot/kiwi debug", NULL);
+        else if(selection == 3) vbe_configure();
         else if(selection == 4) sysinfo();
         else if(selection == 5) about();
     }
-
-    for(;;);
 }
