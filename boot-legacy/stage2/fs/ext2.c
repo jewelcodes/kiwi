@@ -79,6 +79,46 @@ static int read_block(Drive *drive, int partition, u32 block, void *buffer) {
         drive->info.bytes_per_sector, buffer);
 }
 
+static usize read_singly(Drive *drive, int partition,
+                         u32 singly_block, void *buffer, usize size) {
+    if(!drive || partition < 0 || partition >= 4 || !singly_block) {
+        return 0;
+    }
+
+    if(!buffer || !size) {
+        return 0;
+    }
+
+    Ext2Superblock *superblock = (Ext2Superblock *) superblock_buffer;
+    usize block_size = 1024 << superblock->log_block_size;
+    int blocks_per_block = block_size / sizeof(u32);
+
+    u32 *block_numbers = (u32 *) bgdt_buffer;
+
+    if(read_block(drive, partition, singly_block, block_numbers) < 0) {
+        return 0;
+    }
+
+    usize read_bytes = 0;
+    for(int i = 0; i < blocks_per_block; i++) {
+        if(!block_numbers[i]) {
+            break;
+        }
+
+        if(read_block(drive, partition, block_numbers[i],
+            (u8 *) buffer + read_bytes) < 0) {
+            return read_bytes;
+        }
+
+        read_bytes += block_size;
+        if(read_bytes >= size) {
+            break;
+        }
+    }
+
+    return read_bytes;
+}
+
 static usize read_inode(Drive *drive, int partition, int directory,
                         u32 inode_num, void *buffer, usize size) {
     if(!drive || partition < 0 || partition >= 4) {
@@ -133,7 +173,15 @@ static usize read_inode(Drive *drive, int partition, int directory,
         }
 
         read_bytes += block_size;
+        if(read_bytes >= size) {
+            break;
+        }
     }
+
+    read_bytes += read_singly(drive, partition, inode->singly_indirect,
+        (u8 *) buffer + read_bytes, size - read_bytes);
+
+    // TODO: will doubly and triply be necessary in a boot loader?
 
     return read_bytes;
 }
