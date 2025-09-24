@@ -29,20 +29,6 @@
 ACPIRSDP *rsdp = NULL;
 
 int acpi_init(void) {
-    u16 *ebda_segment_ptr = (u16 *)0x40E;
-    u32 ebda_ptr = (*ebda_segment_ptr) << 4;
-
-    for(int i = 0; i < 1024; i += 16) {
-        if(!memcmp((void *)(ebda_ptr + i), "RSD PTR ", 8)) {
-            rsdp = (ACPIRSDP *)(ebda_ptr + i);
-            break;
-        }
-    }
-
-    if(rsdp) {
-        goto found;
-    }
-
     for(u32 addr = 0xE0000; addr < 0x100000; addr += 16) {
         if(!memcmp((void *)addr, "RSD PTR ", 8)) {
             rsdp = (ACPIRSDP *)addr;
@@ -54,8 +40,6 @@ int acpi_init(void) {
         printf("System is not ACPI compliant.\n");
         for(;;);
     }
-
-found:
 
     int size = (!rsdp->revision) ? 20 : rsdp->length;
     u8 sum = 0;
