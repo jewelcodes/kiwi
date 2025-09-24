@@ -3,7 +3,7 @@ ENTRY(_start)
 
 SECTIONS
 {
-    . = 0xFFFFFFFF80000000;
+    . = 0xFFFFFFFF80100000;
 
     .text BLOCK(4096) : ALIGN(4096)
     {
