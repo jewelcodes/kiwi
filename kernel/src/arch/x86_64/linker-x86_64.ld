@@ -4,24 +4,27 @@ ENTRY(_start)
 SECTIONS
 {
     . = 0xFFFFFFFF80100000;
-
-    .text BLOCK(4096) : ALIGN(4096)
+    .text : AT(0x00100000)
     {
-        *(.text)
+        *(.text .text.*)
     }
 
-    .rodata BLOCK(4096) : ALIGN(4096)
+    . = ALIGN(4096);
+    .rodata : AT(ADDR(.rodata) - 0xFFFFFFFF80100000 + 0x00100000)
     {
-        *(.rodata)
+        *(.rodata .rodata.*)
     }
 
-    .data BLOCK(4096) : ALIGN(4096)
+    . = ALIGN(4096);
+    .data : AT(ADDR(.data) - 0xFFFFFFFF80100000 + 0x00100000)
     {
-        *(.data)
+        *(.data .data.*)
     }
 
-    .bss BLOCK(4096) : ALIGN(4096)
+    . = ALIGN(4096);
+    .bss : AT(ADDR(.bss) - 0xFFFFFFFF80100000 + 0x00100000)
     {
-        *(.bss)
+        *(COMMON)
+        *(.bss .bss.*)
     }
 }
