@@ -24,33 +24,4 @@
 
 #pragma once
 
-#include <kiwi/types.h>
-
-#define PAGE_SIZE                   4096
-#define PAGE_PRESENT                0x01
-#define PAGE_WRITABLE               0x02
-#define PAGE_USER                   0x04
-#define PAGE_SIZE_EXTENDED          0x80
-
-#define E820_MAX_ENTRIES            64
-#define E820_TYPE_RAM               1
-#define E820_TYPE_RESERVED          2
-#define E820_TYPE_ACPI_RECLAIMABLE  3
-#define E820_TYPE_ACPI_NVS          4
-#define E820_TYPE_BAD_MEMORY        5
-
-#define E820_ACPI_FLAGS_VALID       1
-#define E820_ACPI_FLAGS_NVS         2
-
-typedef struct E820Entry {
-    u64 base;
-    u64 length;
-    u32 type;
-    u32 acpi_flags;
-}__attribute__((packed)) E820Entry;
-
-int detect_memory(void);
-
-extern E820Entry e820_map[];
-extern int e820_entries;
-extern u64 total_memory, total_usable_memory;
+void long_mode(u32 eax, u32 pml4, u64 entry);

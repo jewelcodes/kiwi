@@ -29,6 +29,8 @@
 #include <boot/acpi.h>
 #include <boot/bios.h>
 #include <boot/input.h>
+#include <boot/elf.h>
+#include <boot/mode.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -82,8 +84,50 @@ int boot_kiwi(const char *command, const char *initrd) {
     if(!load_file(kernel_path, (void *) KIWI_FILE_BUFFER, (usize) -1)) {
         display.fg = palette[LIGHT_RED];
         printf(" Couldn't load kernel binary. Press any key to go back.\n");
-        display.fg = palette[LIGHT_GREEN];
+        input_read(NULL);
+        return -1;
     }
 
-    for(;;);
+    u64 entry, highest;
+    if(elf_load((void *) KIWI_FILE_BUFFER, &entry, &highest) < 0) {
+        display.fg = palette[LIGHT_RED];
+        printf(" Invalid kernel binary. Press any key to go back.\n");
+        input_read(NULL);
+        return -1;
+    }
+
+    // TODO: initrd
+
+    if(highest & (PAGE_SIZE - 1)) {
+        highest = (highest & ~(PAGE_SIZE - 1)) + PAGE_SIZE;
+    }
+
+    // create the 64-bit page tables
+    u64 *pml4 = (u64 *) ((u32) highest & 0x7FFFFFFF);
+    u64 *pdp = (u64 *) ((u32) pml4 + PAGE_SIZE);
+    u64 *pd = (u64 *) ((u32) pdp + PAGE_SIZE);
+
+    memset((void *) pml4, 0, PAGE_SIZE);
+    memset((void *) pdp, 0, PAGE_SIZE);
+    memset((void *) pd, 0, PAGE_SIZE);
+
+    pml4[0] = ((u32) pdp) | PAGE_PRESENT | PAGE_WRITABLE;
+    pml4[511] = ((u32) pdp) | PAGE_PRESENT | PAGE_WRITABLE;
+
+    pdp[0] = ((u32) pd) | PAGE_PRESENT | PAGE_WRITABLE;
+    pdp[1] = ((u32) pd + PAGE_SIZE) | PAGE_PRESENT | PAGE_WRITABLE;
+
+    pdp[510] = ((u32) pd) | PAGE_PRESENT | PAGE_WRITABLE;
+    pdp[511] = ((u32) pd + PAGE_SIZE) | PAGE_PRESENT | PAGE_WRITABLE;
+
+    u64 addr = 0;
+    for(int i = 0; i < 1024; i++) {
+        pd[i] = addr | PAGE_PRESENT | PAGE_WRITABLE | PAGE_SIZE_EXTENDED;
+        addr += 0x200000; // 2 MB
+    }
+
+    kiwi_boot_info.lowest_free_address = (u32) pd + (2 * PAGE_SIZE);
+
+    long_mode((u32) &kiwi_boot_info, (u32) pml4, (u64) entry);
+    return -1; // not reachable really
 }

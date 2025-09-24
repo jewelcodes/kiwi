@@ -166,6 +166,108 @@ error:
     jmp .halt
 
 
+[bits 32]
+
+global long_mode
+long_mode:
+    pop eax                 ; return address
+    pop eax                 ; eax
+    mov [.arg_eax], eax
+    pop eax                 ; pml4
+    mov cr3, eax
+    pop eax                 ; entry low
+    mov [.entry], eax
+    pop eax                 ; entry high
+    mov [.entry + 4], eax
+
+    and esp, 0xFFFF
+
+    ; temporarily go back to 16-bit mode so we can notify BIOS
+    jmp CODE16_SEGMENT:.next
+
+[bits 16]
+
+.next:
+    mov eax, cr0
+    and al, 0xFE
+    mov cr0, eax
+
+    jmp 0x0000:.next2
+
+.next2:
+    xor ax, ax
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ax, STACK_SEGMENT
+    mov ss, ax
+
+    sti
+
+    mov eax, 0xEC00
+    mov ebx, 2
+    int 0x15
+
+    mov al, 0xFF
+    out 0x21, al
+    out 0xA1, al
+
+    mov cx, 0xFFF
+
+.pic_wait:
+    sti
+    nop
+    nop
+    nop
+    nop
+    loop .pic_wait
+
+    cli
+    lgdt [gdtr]
+    mov eax, cr0
+    or al, 1
+    mov cr0, eax
+    jmp CODE32_SEGMENT:.next3
+
+[bits 32]
+
+.next3:
+    mov eax, 0x620          ; sse, pae
+    mov cr4, eax
+
+    mov ecx, 0xC0000080
+    rdmsr
+    or ah, 1                ; long mode
+    wrmsr
+
+    mov eax, cr0
+    or eax, 0x80000000      ; enable paging
+    mov cr0, eax
+
+    jmp CODE64_SEGMENT:.next4
+
+[bits 64]
+
+.next4:
+
+    mov rax, DATA64_SEGMENT
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+    add rsp, STACK_SEGMENT << 4
+
+    mov eax, [.arg_eax]    
+    mov rbx, [.entry]
+    jmp rbx
+
+    align 4
+    .entry:                 resb 8
+    .arg_eax:               resb 4
+
+
 section .stubdata
 
 no64_msg:                   db "A 64-bit CPU is required to run kiwi", 0
