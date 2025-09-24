@@ -3,7 +3,7 @@ CC=x86_64-lux-gcc
 LD=x86_64-lux-ld
 ASM=nasm
 
-CFLAGS=-Wall -c -I./include -I../global -ffreestanding -O2 -m32 -mno-sse --param=min-pagesize=0
+CFLAGS=-Wall -c -I./include -I../global -ffreestanding -fomit-frame-pointer -O2 -m32 -mno-sse --param=min-pagesize=0
 LDFLAGS=-T./linker.ld -nostdlib -m elf_i386
 STAGE1_ASMFLAGS=-f bin -wnone
 STAGE2_ASMFLAGS=-f elf -wnone
