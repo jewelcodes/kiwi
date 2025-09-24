@@ -135,6 +135,9 @@ void clear_screen(void) {
 
         fb += display.current_mode->pitch / 4;
     }
+
+    display.x = 0;
+    display.y = 0;
 }
 
 void dim_screen(void) {
