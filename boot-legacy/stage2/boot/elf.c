@@ -58,7 +58,7 @@ int elf_load(const void *image, u64 *entry, u64 *highest) {
             max_addr = ph->vaddr + ph->mem_size;
         }
 
-        u32 ptr = ph->vaddr & 0x7FFFFFFF;
+        u32 ptr = ph->paddr;
         memcpy((void *) ptr, (u8 *) image + ph->offset, ph->file_size);
         if(ph->mem_size > ph->file_size) {
             memset((u8 *) ptr + ph->file_size, 0, ph->mem_size - ph->file_size);
