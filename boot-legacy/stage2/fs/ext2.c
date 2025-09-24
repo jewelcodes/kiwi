@@ -102,7 +102,8 @@ static usize read_singly(Drive *drive, int partition,
     usize read_bytes = 0;
     for(int i = 0; i < blocks_per_block; i++) {
         if(!block_numbers[i]) {
-            break;
+            memset((u8 *) buffer + read_bytes, 0, block_size);
+            goto next;
         }
 
         if(read_block(drive, partition, block_numbers[i],
@@ -110,6 +111,7 @@ static usize read_singly(Drive *drive, int partition,
             return read_bytes;
         }
 
+next:
         read_bytes += block_size;
         if(read_bytes >= size) {
             break;
@@ -164,7 +166,8 @@ static usize read_inode(Drive *drive, int partition, int directory,
 
     for(int i = 0; i < 12; i++) {
         if(!inode->direct_pointers[i]) {
-            break;
+            memset((u8 *) buffer + read_bytes, 0, block_size);
+            goto next;
         }
 
         if(read_block(drive, partition, inode->direct_pointers[i],
@@ -172,6 +175,7 @@ static usize read_inode(Drive *drive, int partition, int directory,
             return read_bytes;
         }
 
+next:
         read_bytes += block_size;
         if(read_bytes >= size) {
             break;
