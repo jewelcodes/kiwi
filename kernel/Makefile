@@ -6,7 +6,7 @@ ASM=nasm
 ARCH=x86_64
 ARCH_DEF=ARCH_X86_64
 ASFLAGS=-f elf64 -i./src/x86_64/$(ARCH)
-CFLAGS=-Wall -c -D$(ARCH_DEF) -I./src/include -I./src/platform/$(ARCH)/include -mno-sse -ffreestanding -O3 -mcmodel=kernel -mno-red-zone
+CFLAGS=-Wall -c -D$(ARCH_DEF) -I../global -I./src/include -I./src/arch/$(ARCH)/include -mno-sse -ffreestanding -O3 -mcmodel=kernel -mno-red-zone
 LDFLAGS=-T./src/arch/$(ARCH)/linker-$(ARCH).ld -nostdlib
 
 CSRC:=$(shell find . -type f -name "*.c")
