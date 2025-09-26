@@ -24,7 +24,6 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <sys/types.h>
 
 typedef uint64_t u64;
 typedef uint32_t u32;
@@ -38,4 +37,4 @@ typedef int32_t s32;
 typedef int16_t s16;
 typedef int8_t s8;
 typedef intptr_t sptr;
-typedef ssize_t ssize;
+typedef intptr_t ssize;
