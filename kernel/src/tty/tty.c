@@ -59,6 +59,26 @@ const u32 palette[] = {
     0xF5F5F5        // white
 };
 
+void tty_clear(void) {
+    if(!kernel_terminal.front_buffer)
+        return;
+
+    arch_spinlock_acquire(&kernel_terminal.lock);
+
+    u32 pitch = kernel_terminal.pitch;
+    
+    for(int i = 0; i < kernel_terminal.height; i++) {
+        u32 *row = (u32 *)((uptr) kernel_terminal.front_buffer + i * pitch);
+        for(int j = 0; j < kernel_terminal.width; j++) {
+            row[j] = kernel_terminal.bg;
+        }
+    }
+
+    kernel_terminal.x = 0;
+    kernel_terminal.y = 0;
+    arch_spinlock_release(&kernel_terminal.lock);
+}
+
 void tty_putchar(char c) {
     if(!kernel_terminal.front_buffer)
         return;

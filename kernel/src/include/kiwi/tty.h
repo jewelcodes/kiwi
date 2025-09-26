@@ -66,5 +66,6 @@ extern KernelTerminal kernel_terminal;
 extern const u8 font[];
 extern const u32 palette[];
 
+void tty_clear(void);
 void tty_putchar(char c);
 void tty_puts(const char *str);
