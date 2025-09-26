@@ -104,24 +104,29 @@ int boot_kiwi(const char *command, const char *initrd) {
 
     // create the 64-bit page tables
     u64 *pml4 = (u64 *) ((u32) highest & 0x7FFFFFFF);
-    u64 *pdp = (u64 *) ((u32) pml4 + PAGE_SIZE);
-    u64 *pd = (u64 *) ((u32) pdp + PAGE_SIZE);
+    u64 *pdp1 = (u64 *) ((u32) pml4 + PAGE_SIZE);
+    u64 *pdp2 = (u64 *) ((u32) pdp1 + PAGE_SIZE);
+    u64 *pd = (u64 *) ((u32) pdp2 + PAGE_SIZE);
 
     memset((void *) pml4, 0, PAGE_SIZE);
-    memset((void *) pdp, 0, PAGE_SIZE);
+    memset((void *) pdp1, 0, PAGE_SIZE);
+    memset((void *) pdp2, 0, PAGE_SIZE);
     memset((void *) pd, 0, PAGE_SIZE);
 
-    pml4[0] = ((u32) pdp) | PAGE_PRESENT | PAGE_WRITABLE;
-    pml4[511] = ((u32) pdp) | PAGE_PRESENT | PAGE_WRITABLE;
+    pml4[0] = ((u32) pdp1) | PAGE_PRESENT | PAGE_WRITABLE;
+    pml4[511] = ((u32) pdp2) | PAGE_PRESENT | PAGE_WRITABLE;
 
-    pdp[0] = ((u32) pd) | PAGE_PRESENT | PAGE_WRITABLE;
-    pdp[1] = ((u32) pd + PAGE_SIZE) | PAGE_PRESENT | PAGE_WRITABLE;
+    pdp1[0] = ((u32) pd) | PAGE_PRESENT | PAGE_WRITABLE;
+    pdp1[1] = ((u32) pd + PAGE_SIZE) | PAGE_PRESENT | PAGE_WRITABLE;
+    pdp1[2] = ((u32) pd + (2 * PAGE_SIZE)) | PAGE_PRESENT | PAGE_WRITABLE;
+    pdp1[3] = ((u32) pd + (3 * PAGE_SIZE)) | PAGE_PRESENT | PAGE_WRITABLE;
 
-    pdp[510] = ((u32) pd) | PAGE_PRESENT | PAGE_WRITABLE;
-    pdp[511] = ((u32) pd + PAGE_SIZE) | PAGE_PRESENT | PAGE_WRITABLE;
+    pdp2[510] = ((u32) pd) | PAGE_PRESENT | PAGE_WRITABLE;
+    pdp2[511] = ((u32) pd + PAGE_SIZE) | PAGE_PRESENT | PAGE_WRITABLE;
 
+    // identity map the lowest 4 GB and map the first 2 GB at -2 GB
     u64 addr = 0;
-    for(int i = 0; i < 1024; i++) {
+    for(int i = 0; i < 2048; i++) {
         pd[i] = addr | PAGE_PRESENT | PAGE_WRITABLE | PAGE_SIZE_EXTENDED;
         addr += 0x200000; // 2 MB
     }
