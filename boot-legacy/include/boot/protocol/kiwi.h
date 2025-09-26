@@ -63,7 +63,7 @@ typedef struct {
     /* TODO: UEFI */
 
     s8 command_line[512];
-} KiwiBootInfo;
+} __attribute__((packed)) KiwiBootInfo;
 
 extern KiwiBootInfo boot_info;
 
