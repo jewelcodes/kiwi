@@ -26,4 +26,6 @@
 
 #include <kiwi/types.h>
 
+#define LOCK_INITIAL            0
+
 typedef u64 lock_t;
