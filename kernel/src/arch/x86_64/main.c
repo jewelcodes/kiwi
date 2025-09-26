@@ -23,9 +23,21 @@
  */
 
 #include <kiwi/boot.h>
+#include <kiwi/tty.h>
 #include <string.h>
 
 int arch_early_main(KiwiBootInfo *boot_info_ptr) {
     memcpy(&kiwi_boot_info, boot_info_ptr, sizeof(KiwiBootInfo));
+
+    kernel_terminal.width = kiwi_boot_info.framebuffer_width;
+    kernel_terminal.height = kiwi_boot_info.framebuffer_height;
+    kernel_terminal.pitch = kiwi_boot_info.framebuffer_pitch;
+    kernel_terminal.bpp = kiwi_boot_info.framebuffer_bpp;
+    kernel_terminal.front_buffer = (u32 *)kiwi_boot_info.framebuffer;
+    kernel_terminal.bg = 0x000000; // black
+    kernel_terminal.fg = 0xFFFFFF; // white
+
+    tty_puts("Hello, kernel world!\n");
+
     for(;;);
 }
