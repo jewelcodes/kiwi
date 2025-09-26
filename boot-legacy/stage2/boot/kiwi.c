@@ -131,7 +131,7 @@ int boot_kiwi(const char *command, const char *initrd) {
         addr += 0x200000; // 2 MB
     }
 
-    kiwi_boot_info.lowest_free_address = (u32) pd + (2 * PAGE_SIZE);
+    kiwi_boot_info.lowest_free_address = (u32) pd + (4 * PAGE_SIZE);
 
     long_mode((u32) &kiwi_boot_info, (u32) pml4, (u64) entry);
     return -1; // not reachable really
