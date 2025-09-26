@@ -22,32 +22,27 @@
  * SOFTWARE.
  */
 
-#include <kiwi/boot.h>
-#include <kiwi/tty.h>
 #include <kiwi/debug.h>
-#include <kiwi/version.h>
-#include <string.h>
+#include <kiwi/arch/atomic.h>
+#include <stdio.h>
 
-int arch_early_main(KiwiBootInfo *boot_info_ptr) {
-    memcpy(&kiwi_boot_info, boot_info_ptr, sizeof(KiwiBootInfo));
+static lock_t debug_lock = LOCK_INITIAL;
 
-    kernel_terminal.width = kiwi_boot_info.framebuffer_width;
-    kernel_terminal.height = kiwi_boot_info.framebuffer_height;
-    kernel_terminal.pitch = kiwi_boot_info.framebuffer_pitch;
-    kernel_terminal.bpp = kiwi_boot_info.framebuffer_bpp;
-    kernel_terminal.front_buffer = (u32 *)kiwi_boot_info.framebuffer;
-    kernel_terminal.bg = palette[BLACK];
-    kernel_terminal.fg = palette[LIGHT_GRAY];
+int debug_level = DEBUG_LEVEL_INFO;
 
-    tty_clear();
+u64 ticks = 0; // TODO: when we actually have a timer this won't be here
 
-    debug_info(KERNEL_VERSION);
-    debug_info("booting with command line: %s", kiwi_boot_info.command_line);
-    debug_info("framebuffer @ 0x%08llX: %ux%ux%u, pitch %u",
-        (uptr) kernel_terminal.front_buffer,
-        kernel_terminal.width,
-        kernel_terminal.height,
-        kernel_terminal.bpp,
-        kernel_terminal.pitch);
-    for(;;);
+void debug_print(int level, const char *fmt, ...) {
+    // TODO: change log colors based on level
+    if(level < debug_level)
+        return;
+    
+    arch_spinlock_acquire(&debug_lock);
+    printf("[%08llu.%03llu] ", ticks / 1000, ticks % 1000);
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+    printf("\n");
+    arch_spinlock_release(&debug_lock);
 }

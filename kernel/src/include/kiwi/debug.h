@@ -22,32 +22,16 @@
  * SOFTWARE.
  */
 
-#include <kiwi/boot.h>
-#include <kiwi/tty.h>
-#include <kiwi/debug.h>
-#include <kiwi/version.h>
-#include <string.h>
+#pragma once
 
-int arch_early_main(KiwiBootInfo *boot_info_ptr) {
-    memcpy(&kiwi_boot_info, boot_info_ptr, sizeof(KiwiBootInfo));
+#define DEBUG_LEVEL_INFO    1
+#define DEBUG_LEVEL_WARN    2
+#define DEBUG_LEVEL_ERROR   3
+#define DEBUG_LEVEL_PANIC   4
 
-    kernel_terminal.width = kiwi_boot_info.framebuffer_width;
-    kernel_terminal.height = kiwi_boot_info.framebuffer_height;
-    kernel_terminal.pitch = kiwi_boot_info.framebuffer_pitch;
-    kernel_terminal.bpp = kiwi_boot_info.framebuffer_bpp;
-    kernel_terminal.front_buffer = (u32 *)kiwi_boot_info.framebuffer;
-    kernel_terminal.bg = palette[BLACK];
-    kernel_terminal.fg = palette[LIGHT_GRAY];
+#define debug_info(fmt, ...)    debug_print(DEBUG_LEVEL_INFO, fmt, ##__VA_ARGS__)
+#define debug_warn(fmt, ...)    debug_print(DEBUG_LEVEL_WARN, fmt, ##__VA_ARGS__)
+#define debug_error(fmt, ...)   debug_print(DEBUG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+#define debug_panic(fmt, ...)   debug_print(DEBUG_LEVEL_PANIC, fmt, ##__VA_ARGS__)
 
-    tty_clear();
-
-    debug_info(KERNEL_VERSION);
-    debug_info("booting with command line: %s", kiwi_boot_info.command_line);
-    debug_info("framebuffer @ 0x%08llX: %ux%ux%u, pitch %u",
-        (uptr) kernel_terminal.front_buffer,
-        kernel_terminal.width,
-        kernel_terminal.height,
-        kernel_terminal.bpp,
-        kernel_terminal.pitch);
-    for(;;);
-}
+void debug_print(int level, const char *fmt, ...);
