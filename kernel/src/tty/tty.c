@@ -92,19 +92,10 @@ void tty_putchar(char c) {
     } else if(c == '\n') {
         kernel_terminal.x = 0;
         kernel_terminal.y++;
+        goto check_boundaries;
     } else if(c == '\t') {
         kernel_terminal.x += 4 - (kernel_terminal.x % 4);
-    }
-
-    if(kernel_terminal.x >= CONSOLE_WIDTH) {
-        kernel_terminal.x = 0;
-        kernel_terminal.y++;
-    }
-
-    if(kernel_terminal.y >= CONSOLE_HEIGHT) {
-        // TODO: scroll up instead
-        kernel_terminal.x = 0;
-        kernel_terminal.y = 0;
+        goto check_boundaries;
     }
 
     if(c < FONT_MIN_GLYPH || c > FONT_MAX_GLYPH) c = ' ';
@@ -129,6 +120,19 @@ void tty_putchar(char c) {
     }
 
     kernel_terminal.x++;
+
+check_boundaries:
+    if(kernel_terminal.x >= CONSOLE_WIDTH) {
+        kernel_terminal.x = 0;
+        kernel_terminal.y++;
+    }
+
+    if(kernel_terminal.y >= CONSOLE_HEIGHT) {
+        // TODO: scroll up instead
+        kernel_terminal.x = 0;
+        kernel_terminal.y = 0;
+    }
+
     arch_spinlock_release(&kernel_terminal.lock);
 }
 
