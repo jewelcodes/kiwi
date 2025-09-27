@@ -29,9 +29,9 @@
 #define DEBUG_LEVEL_ERROR   3
 #define DEBUG_LEVEL_PANIC   4
 
-#define debug_info(fmt, ...)    debug_print(DEBUG_LEVEL_INFO, fmt, ##__VA_ARGS__)
-#define debug_warn(fmt, ...)    debug_print(DEBUG_LEVEL_WARN, fmt, ##__VA_ARGS__)
-#define debug_error(fmt, ...)   debug_print(DEBUG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
-#define debug_panic(fmt, ...)   debug_print(DEBUG_LEVEL_PANIC, fmt, ##__VA_ARGS__)
+#define debug_info(fmt, ...)    debug_print(DEBUG_LEVEL_INFO, __FILE__, fmt, ##__VA_ARGS__)
+#define debug_warn(fmt, ...)    debug_print(DEBUG_LEVEL_WARN, __FILE__, fmt, ##__VA_ARGS__)
+#define debug_error(fmt, ...)   debug_print(DEBUG_LEVEL_ERROR, __FILE__, fmt, ##__VA_ARGS__)
+#define debug_panic(fmt, ...)   debug_print(DEBUG_LEVEL_PANIC, __FILE__, fmt, ##__VA_ARGS__)
 
-void debug_print(int level, const char *fmt, ...);
+void debug_print(int level, const char *file, const char *fmt, ...);

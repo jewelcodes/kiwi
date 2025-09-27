@@ -32,13 +32,13 @@ int debug_level = DEBUG_LEVEL_INFO;
 
 u64 ticks = 0; // TODO: when we actually have a timer this won't be here
 
-void debug_print(int level, const char *fmt, ...) {
+void debug_print(int level, const char *file, const char *fmt, ...) {
     // TODO: change log colors based on level
     if(level < debug_level)
         return;
     
     arch_spinlock_acquire(&debug_lock);
-    printf("[%08llu.%03llu] ", ticks / 1000, ticks % 1000);
+    printf("[%06llu.%03llu] %s: ", ticks / 1000, ticks % 1000, file + 4); // skip "src/"
     va_list args;
     va_start(args, fmt);
     vprintf(fmt, args);
