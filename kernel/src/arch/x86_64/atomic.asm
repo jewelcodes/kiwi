@@ -42,7 +42,6 @@ global arch_cas32
 align 16
 arch_cas32:
     mov eax, esi        ; old
-    mov edx, edi        ; new
     lock cmpxchg [rdi], edx
     sete al
     movzx rax, al
@@ -52,7 +51,6 @@ global arch_cas64
 align 16
 arch_cas64:
     mov rax, rsi
-    mov rdx, rdi
     lock cmpxchg [rdi], rdx
     sete al
     movzx rax, al
