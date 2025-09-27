@@ -32,8 +32,8 @@
 #define FONT_MIN_GLYPH              32
 #define FONT_MAX_GLYPH              126
 
-#define CONSOLE_WIDTH               80
-#define CONSOLE_HEIGHT              25
+#define CONSOLE_WIDTH               94
+#define CONSOLE_HEIGHT              34
 
 #define BLACK                       0
 #define BLUE                        1
