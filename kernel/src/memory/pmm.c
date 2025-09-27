@@ -59,6 +59,135 @@ static int pmm_bit_clear(u8 *bitmap, u64 bit) {
     return arch_cas64(word, old, new);
 }
 
+static uptr pmm_search(void) {
+    // TODO: track global and per-core statistics of these operation counts and
+    // retries in the future to help with diagnostics
+    int total_count = 0;
+    int retries = PMM_RETRIES;
+
+start:
+    u64 bit_offset_into_layer = 0;
+    for(int layer = pmm.bitmap_layer_count - 1; layer >= 0; layer--) {
+        u64 layer_size = pmm.bitmap_layer_bit_sizes[layer];
+        u8 search_width = layer_size >= PMM_FANOUT ? PMM_FANOUT : layer_size;
+        u64 *word = (u64 *)((uptr)pmm.bitmap_start
+            + (pmm.bitmap_layer_bit_offsets[layer] / 8)
+            + ((bit_offset_into_layer / PMM_FANOUT) * 8));
+        
+        s8 found_bit = -1;
+        for(u8 bit = 0; bit < search_width; bit++) {
+            total_count++;
+            if(!(*word & (1ULL << bit))) {
+                found_bit = bit;
+                break;
+            }
+        }
+
+        if(found_bit < 0) {
+            if(layer != (pmm.bitmap_layer_count - 1)) {
+                retries--;
+                if(!retries) return 0;
+                debug_warn("collision at layer %d, restarting search (retries left: %d)",
+                    layer, retries);
+                goto start;
+            }
+            return 0;
+        }
+
+        bit_offset_into_layer += found_bit;
+
+        if(!layer) {
+            /*debug_info("found free mem @ 0x%llX after %d bit tests",
+                bit_offset_into_layer * PAGE_SIZE, total_count);*/
+            return bit_offset_into_layer * PAGE_SIZE;
+        } else {
+            bit_offset_into_layer *= PMM_FANOUT;
+        }
+    }
+
+    return 0;
+}
+
+static int pmm_mark_used(uptr addr) {
+    addr &= ~PAGE_MASK;
+    u64 bit = addr / PAGE_SIZE;
+
+    int marked = pmm_bit_set(pmm.bitmap_start, bit);
+    if(!marked) {
+        return 0;
+    }
+
+    if(pmm.bitmap_layer_count == 1) {
+        return 1;
+    }
+
+    u64 *word = (u64 *) ((uptr) pmm.bitmap_start + (bit / PMM_FANOUT) * 8);
+    int current_layer = 0;
+
+check_parents:
+    if(*word == (u64) -1) {
+        current_layer++;
+        if(current_layer >= pmm.bitmap_layer_count) {
+            return 1;
+        }
+
+        bit /= PMM_FANOUT;
+        if(!pmm_bit_set(pmm.bitmap_start,
+            pmm.bitmap_layer_bit_offsets[current_layer] + bit)) {
+            current_layer--;
+            goto check_parents;
+        }
+
+        word = (u64 *) ((uptr) pmm.bitmap_start
+            + (pmm.bitmap_layer_bit_offsets[current_layer] / 8)
+            + (bit / PMM_FANOUT) * 8);
+        goto check_parents;
+    }
+
+    return 1;
+}
+
+static int pmm_mark_free(uptr addr) {
+    addr &= ~PAGE_MASK;
+    u64 bit = addr / PAGE_SIZE;
+
+    int cleared = pmm_bit_clear(pmm.bitmap_start, bit);
+    if(!cleared) {
+        return 0;
+    }
+
+    if(pmm.bitmap_layer_count == 1) {
+        return 1;
+    }
+
+    bit /= PMM_FANOUT;
+    u64 *word = (u64 *) ((uptr) pmm.bitmap_start
+        + (pmm.bitmap_layer_bit_offsets[1] / 8)
+        + (bit / PMM_FANOUT) * 8);
+    int current_layer = 1;
+
+check_parents:
+    if(*word & (1ULL << (bit % 64))) {
+        if(!pmm_bit_clear(pmm.bitmap_start,
+            pmm.bitmap_layer_bit_offsets[current_layer] + bit)) {
+            goto check_parents;
+        }
+
+        current_layer++;
+        if(current_layer >= pmm.bitmap_layer_count) {
+            return 1;
+        }
+
+        bit /= PMM_FANOUT;
+        word = (u64 *) ((uptr) pmm.bitmap_start
+            + (pmm.bitmap_layer_bit_offsets[current_layer] / 8)
+            + (bit / PMM_FANOUT) * 8);
+        goto check_parents;
+    }
+
+    return 1;
+}
+
 void pmm_init(void) {
     memset(&pmm, 0, sizeof(PhysicalMemory));
     E820Entry *map = (E820Entry *)(uptr)kiwi_boot_info.memory_map;
@@ -112,7 +241,7 @@ void pmm_init(void) {
         }
 
         for(u64 p = 0; p < page_count; p++) {
-            while(pmm_bit_clear(pmm.bitmap_start, (start / PAGE_SIZE) + p) == 0);
+            while(!pmm_bit_clear(pmm.bitmap_start, (start / PAGE_SIZE) + p));
             linear_free_count++;
         }
     }
@@ -154,7 +283,7 @@ void pmm_init(void) {
         for(int j = 0; j < prev_layer_size / PMM_FANOUT; j++) {
             u64 word = prev_layer[j];
             if(word != (u64) -1) {
-                while(pmm_bit_clear(pmm.bitmap_start, this_layer_offset + j) == 0);
+                while(!pmm_bit_clear(pmm.bitmap_start, this_layer_offset + j));
                 count++;
             }
         }
@@ -181,7 +310,52 @@ void pmm_init(void) {
 
     u64 overhead = (pmm.bitmap_layer_bit_offsets[pmm.bitmap_layer_count - 1]
         + pmm.bitmap_layer_bit_sizes[pmm.bitmap_layer_count - 1] + 7) / 8;
-    debug_info("pmm overhead = %llu KB", overhead / 1024);
+    debug_info("overhead = %llu KB", overhead / 1024);
 
+    // mark the overhead as used
+    u64 overhead_pages = PAGE_ALIGN_UP(kiwi_boot_info.lowest_free_address + overhead) / PAGE_SIZE;
+
+    for(int i = 0; i < overhead_pages; i++) {
+        pmm_mark_used(i * PAGE_SIZE);
+    }
+
+    uptr ptr1 = pmm_alloc_page();
+    debug_info("pmm alloc test = 0x%llX", ptr1);
+    uptr ptr2 = pmm_alloc_page();
+    debug_info("pmm alloc test = 0x%llX", ptr2);
+    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
+    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
+    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
+    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
+    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
+    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
+
+    debug_info("allocating 20 more pages...");
+
+    for(int i = 0; i < 20; i++) {
+        pmm_alloc_page();
+    }
+
+    debug_info("attempt to free ptr = 0x%llX", ptr1);
+    pmm_mark_free(ptr1);
+    debug_info("attempt to free ptr = 0x%llX", ptr2);
+    pmm_mark_free(ptr2);
+
+    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
+    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
+    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
     for(;;);
+}
+
+uptr pmm_alloc_page(void) {
+    uptr addr = pmm_search();
+    if(!addr) {
+        return 0;
+    }
+
+    return pmm_mark_used(addr) ? addr : 0;
+}
+
+void pmm_free_page(uptr page) {
+    pmm_mark_free(page);
 }

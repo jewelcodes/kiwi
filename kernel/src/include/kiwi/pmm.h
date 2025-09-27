@@ -38,6 +38,7 @@
 /* hierarchy parameters */
 #define PMM_FANOUT                  64  /* fits nicely in a machine word */
 #define PMM_MAX_LEVELS              7   /* up to 16 PB (16384 TB) with 4 KB pages */
+#define PMM_RETRIES                 4
 
 typedef struct E820Entry {
     u64 base;
