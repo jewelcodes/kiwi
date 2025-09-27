@@ -85,6 +85,8 @@ void tty_putchar(char c) {
 
     arch_spinlock_acquire(&kernel_terminal.lock);
 
+    u32 pitch = kernel_terminal.pitch;
+
     if(c == '\r') {
         kernel_terminal.x = 0;
         arch_spinlock_release(&kernel_terminal.lock);
@@ -107,7 +109,6 @@ void tty_putchar(char c) {
     u32 x = (kernel_terminal.x * FONT_WIDTH)
         + ((kernel_terminal.width/2
         - (CONSOLE_WIDTH*FONT_WIDTH)/2));
-    u32 pitch = kernel_terminal.pitch;
 
     for(int j = 0; j < FONT_HEIGHT; j++) {
         u8 data = font_data[j];
@@ -131,6 +132,13 @@ check_boundaries:
         // TODO: scroll up instead
         kernel_terminal.x = 0;
         kernel_terminal.y = 0;
+
+        for(int i = 0; i < kernel_terminal.height; i++) {
+            u32 *row = (u32 *)((uptr) kernel_terminal.front_buffer + i * pitch);
+            for(int j = 0; j < kernel_terminal.width; j++) {
+                row[j] = kernel_terminal.bg;
+            }
+        }
     }
 
     arch_spinlock_release(&kernel_terminal.lock);
