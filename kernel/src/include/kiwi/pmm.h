@@ -35,6 +35,10 @@
 #define E820_ACPI_FLAGS_VALID       1
 #define E820_ACPI_FLAGS_NVS         2
 
+/* hierarchy parameters */
+#define PMM_FANOUT                  64  /* fits nicely in a machine word */
+#define PMM_MAX_LEVELS              7   /* up to 16 PB (16384 TB) with 4 KB pages */
+
 typedef struct E820Entry {
     u64 base;
     u64 length;
@@ -42,4 +46,20 @@ typedef struct E820Entry {
     u32 acpi_flags;
 }__attribute__((packed)) E820Entry;
 
+typedef struct PhysicalMemory {
+    u64 total_memory;
+    u64 hardware_reserved_memory;
+    u64 usable_memory;
+    u64 used_memory;
+
+    u8 *bitmap_start;
+    u8 bitmap_layer_count;
+    u64 bitmap_layer_bit_offsets[PMM_MAX_LEVELS];
+    u64 bitmap_layer_bit_sizes[PMM_MAX_LEVELS];
+} PhysicalMemory;
+
+extern PhysicalMemory pmm;
+
 void pmm_init(void);
+uptr pmm_alloc_page(void);
+void pmm_free_page(uptr page);
