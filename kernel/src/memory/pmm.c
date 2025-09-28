@@ -318,33 +318,6 @@ void pmm_init(void) {
     for(int i = 0; i < overhead_pages; i++) {
         pmm_mark_used(i * PAGE_SIZE);
     }
-
-    uptr ptr1 = pmm_alloc_page();
-    debug_info("pmm alloc test = 0x%llX", ptr1);
-    uptr ptr2 = pmm_alloc_page();
-    debug_info("pmm alloc test = 0x%llX", ptr2);
-    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
-    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
-    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
-    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
-    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
-    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
-
-    debug_info("allocating 20 more pages...");
-
-    for(int i = 0; i < 20; i++) {
-        pmm_alloc_page();
-    }
-
-    debug_info("attempt to free ptr = 0x%llX", ptr1);
-    pmm_mark_free(ptr1);
-    debug_info("attempt to free ptr = 0x%llX", ptr2);
-    pmm_mark_free(ptr2);
-
-    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
-    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
-    debug_info("pmm alloc test = 0x%llX", pmm_alloc_page());
-    for(;;);
 }
 
 uptr pmm_alloc_page(void) {
