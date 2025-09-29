@@ -52,6 +52,7 @@ typedef struct PhysicalMemory {
     u64 hardware_reserved_memory;
     u64 usable_memory;
     u64 used_memory;
+    u64 highest_address;
 
     u8 *bitmap_start;
     u8 bitmap_layer_count;

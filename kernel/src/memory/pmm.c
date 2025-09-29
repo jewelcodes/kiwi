@@ -218,6 +218,7 @@ void pmm_init(void) {
 
     debug_info("building pmm hierarchy...");
 
+    pmm.highest_address = highest_addr;
     pmm.bitmap_start = (u8 *) PAGE_ALIGN_UP(kiwi_boot_info.lowest_free_address);
     usize first_layer_size_bits = PAGE_ALIGN_UP(highest_addr) / PAGE_SIZE;
     if(first_layer_size_bits % PMM_FANOUT) {
