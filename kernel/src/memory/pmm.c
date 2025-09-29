@@ -25,7 +25,7 @@
 #include <kiwi/debug.h>
 #include <kiwi/pmm.h>
 #include <kiwi/boot.h>
-#include <kiwi/arch/memory.h>
+#include <kiwi/arch/memmap.h>
 #include <kiwi/arch/atomic.h>
 #include <string.h>
 
