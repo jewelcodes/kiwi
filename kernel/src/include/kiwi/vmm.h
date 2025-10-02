@@ -62,7 +62,7 @@ typedef struct VMMTreeNode {
 
 typedef struct VASpace {
     VMMTreeNode *root;
-    uptr arch_specific;
+    uptr arch_page_tables;
 } VASpace;
 
 void vmm_init(void);

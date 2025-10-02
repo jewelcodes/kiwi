@@ -22,38 +22,16 @@
  * SOFTWARE.
  */
 
-#include <kiwi/boot.h>
-#include <kiwi/tty.h>
-#include <kiwi/debug.h>
-#include <kiwi/version.h>
-#include <kiwi/pmm.h>
-#include <kiwi/vmm.h>
-#include <string.h>
+#pragma once
 
-int arch_early_main(KiwiBootInfo *boot_info_ptr) {
-    memcpy(&kiwi_boot_info, boot_info_ptr, sizeof(KiwiBootInfo));
+#include <kiwi/types.h>
 
-    kernel_terminal.width = kiwi_boot_info.framebuffer_width;
-    kernel_terminal.height = kiwi_boot_info.framebuffer_height;
-    kernel_terminal.pitch = kiwi_boot_info.framebuffer_pitch;
-    kernel_terminal.bpp = kiwi_boot_info.framebuffer_bpp;
-    kernel_terminal.front_buffer = (u32 *)kiwi_boot_info.framebuffer;
-    kernel_terminal.bg = palette[BLACK];
-    kernel_terminal.fg = palette[LIGHT_GRAY];
+u64 arch_get_cr0(void);
+u64 arch_get_cr2(void);
+u64 arch_get_cr3(void);
+u64 arch_get_cr4(void);
+void arch_set_cr0(u64 value);
+void arch_set_cr3(u64 value);
+void arch_set_cr4(u64 value);
 
-    tty_clear();
-
-    debug_info(KERNEL_VERSION);
-    debug_info("booting with command line: %s", kiwi_boot_info.command_line);
-    debug_info("framebuffer @ 0x%08llX: %ux%ux%u, pitch %u",
-        (uptr) kernel_terminal.front_buffer,
-        kernel_terminal.width,
-        kernel_terminal.height,
-        kernel_terminal.bpp,
-        kernel_terminal.pitch);
-
-    pmm_init();
-    vmm_init();
-
-    for(;;);
-}
+void arch_invlpg(uptr addr);

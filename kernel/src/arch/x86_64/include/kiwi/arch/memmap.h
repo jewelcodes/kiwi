@@ -31,3 +31,8 @@
 #define PAGE_ALIGN_UP(x)            (((x) + PAGE_MASK) & ~PAGE_MASK)
 #define PAGE_ALIGN_DOWN(x)          ((x) & ~PAGE_MASK)
 #define PAGE_ALIGNED(x)             (((x) & PAGE_MASK) == 0)
+
+#define ARCH_HHDM_BASE              0xFFFFA00000000000ULL
+#define ARCH_VMM_BASE               0xFFFF800000000000ULL
+#define ARCH_KERNEL_HEAP_BASE       0xFFFF900000000000ULL
+#define ARCH_KERNEL_IMAGE_BASE      0xFFFFFFFF80100000ULL
