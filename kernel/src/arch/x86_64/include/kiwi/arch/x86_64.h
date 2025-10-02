@@ -26,6 +26,82 @@
 
 #include <kiwi/types.h>
 
+#define GDT_ENTRIES             7
+#define IDT_ENTRIES             256
+
+#define GDT_NULL                0
+#define GDT_KERNEL_CODE         1
+#define GDT_KERNEL_DATA         2
+#define GDT_USER_DATA           3
+#define GDT_USER_CODE           4
+#define GDT_TSS_LOW             5
+#define GDT_TSS_HIGH            6
+
+#define GDT_ACCESS_ACCESSED     0x01
+#define GDT_ACCESS_WRITABLE     0x02
+#define GDT_ACCESS_DC           0x04
+#define GDT_ACCESS_EXEC         0x08
+#define GDT_ACCESS_CODE_DATA    0x10
+#define GDT_ACCESS_DPL0         0x00
+#define GDT_ACCESS_DPL3         0x60
+#define GDT_ACCESS_PRESENT      0x80
+
+#define GDT_FLAGS_AVAILABLE     0x10
+#define GDT_FLAGS_64_BIT        0x20
+#define GDT_FLAGS_32_BIT        0x40
+#define GDT_FLAGS_GRANULARITY   0x80
+
+#define IDT_FLAGS_VALID         0x8000
+#define IDT_FLAGS_INTERRUPT     0x000E
+#define IDT_FLAGS_TRAP          0x000F
+#define IDT_FLAGS_DPL0          0x0000
+#define IDT_FLAGS_DPL3          0x6000
+
+typedef struct GDTR {
+    u16 limit;
+    u64 base;
+} __attribute__((packed)) GDTR;
+
+typedef struct IDTR {
+    u16 limit;
+    u64 base;
+} __attribute__((packed)) IDTR;
+
+typedef struct GDTEntry {
+    u16 limit_low;
+    u16 base_low;
+    u8 base_middle;
+    u8 access;
+    u8 flags_limit_high;
+    u8 base_high;
+} __attribute__((packed)) GDTEntry;
+
+typedef struct IDTEntry {
+    u16 offset_low;
+    u16 segment;
+    u16 flags;
+    u16 offset_middle;
+    u32 offset_high;
+    u32 reserved;
+} __attribute__((packed)) IDTEntry;
+
+typedef struct TSS {
+    u32 reserved1;
+    u64 rsp0;
+    u64 rsp1;
+    u64 rsp2;
+    u64 reserved2;
+    u64 ist[7];
+    u64 reserved3;
+    u16 reserved4;
+    u16 iomap_offset;
+    u8 iomap[8192];
+    u8 ones;
+} __attribute__((packed)) TSS;
+
+extern GDTEntry gdt[GDT_ENTRIES];
+extern IDTEntry idt[IDT_ENTRIES];
+
 u64 arch_get_cr0(void);
 u64 arch_get_cr2(void);
 u64 arch_get_cr3(void);
@@ -33,5 +109,12 @@ u64 arch_get_cr4(void);
 void arch_set_cr0(u64 value);
 void arch_set_cr3(u64 value);
 void arch_set_cr4(u64 value);
-
+void arch_load_gdt(const GDTR *gdtr);
+void arch_load_idt(const IDTR *idtr);
+void arch_load_tss(u16 selector);
+void arch_reload_code_segment(u16 selector);
+void arch_reload_data_segments(u16 selector);
+void arch_enable_irqs(void);
+void arch_disable_irqs(void);
+void arch_halt(void);
 void arch_invlpg(uptr addr);

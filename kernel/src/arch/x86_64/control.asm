@@ -75,3 +75,70 @@ align 16
 arch_set_cr4:
     mov cr4, rdi
     ret
+
+global arch_load_gdt
+align 16
+arch_load_gdt:
+    lgdt [rdi]
+    ret
+
+global arch_load_idt
+align 16
+arch_load_idt:
+    lidt [rdi]
+    ret
+
+global arch_load_tss
+align 16
+arch_load_tss:
+    ltr di
+    ret
+
+global arch_reload_code_segment
+align 16
+arch_reload_code_segment:
+    push rdi
+    mov rdi, .next
+    push rdi
+    retf
+
+.next:
+    ret
+
+global arch_reload_data_segments
+align 16
+arch_reload_data_segments:
+    pushfq
+    cli
+    mov ds, di
+    mov es, di
+    mov fs, di
+    mov gs, di
+    mov ss, di
+
+    popfq
+    ret
+
+global arch_enable_irqs
+align 16
+arch_enable_irqs:
+    sti
+    ret
+
+global arch_disable_irqs
+align 16
+arch_disable_irqs:
+    cli
+    ret
+
+global arch_halt
+align 16
+arch_halt:
+    hlt
+    ret
+
+global arch_invlpg
+align 16
+arch_invlpg:
+    invlpg [rdi]
+    ret
