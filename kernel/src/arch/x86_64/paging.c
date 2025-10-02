@@ -35,7 +35,7 @@
 static uptr *kernel_paging_root;
 static uptr hhdm_base = 0;
 
-static uptr map_page(uptr cr3, uptr virtual, uptr physical, u16 prot) {
+uptr arch_map_page(uptr cr3, uptr virtual, uptr physical, u16 prot) {
     int pml4_index = (virtual >> 39) & 0x1FF;
     int pdp_index = (virtual >> 30) & 0x1FF;
     int pd_index = (virtual >> 21) & 0x1FF;
@@ -88,7 +88,7 @@ no_memory:
     return 0;
 }
 
-static uptr map_large_page(uptr cr3, uptr virtual, uptr physical, u16 prot) {
+uptr arch_map_large_page(uptr cr3, uptr virtual, uptr physical, u16 prot) {
     int pml4_index = (virtual >> 39) & 0x1FF;
     int pdp_index = (virtual >> 30) & 0x1FF;
     int pd_index = (virtual >> 21) & 0x1FF;
@@ -138,7 +138,7 @@ uptr arch_paging_init(void) {
     usize hhdm_pages = (usize) (pmm.highest_address + LARGE_PAGE_SIZE - 1)
         / LARGE_PAGE_SIZE;
     for(usize i = 0; i < hhdm_pages; i++) {
-        if(!map_large_page((uptr) kernel_paging_root,
+        if(!arch_map_large_page((uptr) kernel_paging_root,
                 ARCH_HHDM_BASE + i * LARGE_PAGE_SIZE,
                 i * LARGE_PAGE_SIZE,
                 VMM_PROT_READ | VMM_PROT_WRITE)) {
@@ -153,7 +153,7 @@ uptr arch_paging_init(void) {
         / LARGE_PAGE_SIZE;
 
     for(usize i = 0; i < kernel_pages; i++) {
-        if(!map_large_page((uptr) kernel_paging_root,
+        if(!arch_map_large_page((uptr) kernel_paging_root,
                 ARCH_KERNEL_IMAGE_BASE + i * LARGE_PAGE_SIZE,
                 i * LARGE_PAGE_SIZE,
                 VMM_PROT_READ | VMM_PROT_WRITE)) {

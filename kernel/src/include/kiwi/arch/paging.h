@@ -35,3 +35,5 @@
 #define PAGE_NO_EXECUTE             (1ULL << 63)
 
 uptr arch_paging_init(void);
+uptr arch_map_page(uptr cr3, uptr virtual, uptr physical, u16 prot);
+uptr arch_map_large_page(uptr cr3, uptr virtual, uptr physical, u16 prot);
