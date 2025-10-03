@@ -30,6 +30,8 @@
 #include <kiwi/vmm.h>
 #include <string.h>
 
+void arch_dt_setup(void);
+
 int arch_early_main(KiwiBootInfo *boot_info_ptr) {
     memcpy(&kiwi_boot_info, boot_info_ptr, sizeof(KiwiBootInfo));
 
@@ -52,8 +54,10 @@ int arch_early_main(KiwiBootInfo *boot_info_ptr) {
         kernel_terminal.bpp,
         kernel_terminal.pitch);
 
+    arch_dt_setup();
     pmm_init();
     vmm_init();
+    
 
     for(;;);
 }
