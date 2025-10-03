@@ -65,3 +65,19 @@ void arch_dt_setup(void) {
     idtr.base = (u64)&idt;
     arch_load_idt(&idtr);
 }
+
+int arch_install_isr(u8 vector, uptr handler, u16 segment, int user) {
+    if(vector >= IDT_ENTRIES) {
+        debug_error("arch_install_isr: invalid vector 0x%02X", vector);
+        return -1;
+    }
+
+    idt[vector].offset_low = handler & 0xFFFF;
+    idt[vector].offset_middle = (handler >> 16) & 0xFFFF;
+    idt[vector].offset_high = (handler >> 32) & 0xFFFFFFFF;
+    idt[vector].segment = segment | (user ? 0x03 : 0x00);
+    idt[vector].flags = IDT_FLAGS_VALID | IDT_FLAGS_INTERRUPT;
+    idt[vector].reserved = 0;
+
+    return 0;
+}

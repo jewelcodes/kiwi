@@ -118,3 +118,4 @@ void arch_enable_irqs(void);
 void arch_disable_irqs(void);
 void arch_halt(void);
 void arch_invlpg(uptr addr);
+int arch_install_isr(u8 vector, uptr handler, u16 segment, int user);
