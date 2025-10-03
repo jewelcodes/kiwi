@@ -52,8 +52,8 @@
 #define GDT_FLAGS_GRANULARITY   0x80
 
 #define IDT_FLAGS_VALID         0x8000
-#define IDT_FLAGS_INTERRUPT     0x000E
-#define IDT_FLAGS_TRAP          0x000F
+#define IDT_FLAGS_INTERRUPT     0x0E00
+#define IDT_FLAGS_TRAP          0x0F00
 #define IDT_FLAGS_DPL0          0x0000
 #define IDT_FLAGS_DPL3          0x6000
 
@@ -98,6 +98,30 @@ typedef struct TSS {
     u8 iomap[8192];
     u8 ones;
 } __attribute__((packed)) TSS;
+
+typedef struct ExceptionStackFrame {
+    u64 r15;
+    u64 r14;
+    u64 r13;
+    u64 r12;
+    u64 r11;
+    u64 r10;
+    u64 r9;
+    u64 r8;
+    u64 rbp;
+    u64 rdi;
+    u64 rsi;
+    u64 rdx;
+    u64 rcx;
+    u64 rbx;
+    u64 rax;
+    u64 error_code;
+    u64 rip;
+    u64 cs;
+    u64 rflags;
+    u64 rsp;
+    u64 ss;
+} __attribute__((packed)) ExceptionStackFrame;
 
 extern GDTEntry gdt[GDT_ENTRIES];
 extern IDTEntry idt[IDT_ENTRIES];

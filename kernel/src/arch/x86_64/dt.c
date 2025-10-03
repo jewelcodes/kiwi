@@ -74,7 +74,7 @@ int arch_install_isr(u8 vector, uptr handler, u16 segment, int user) {
 
     idt[vector].offset_low = handler & 0xFFFF;
     idt[vector].offset_middle = (handler >> 16) & 0xFFFF;
-    idt[vector].offset_high = (handler >> 32) & 0xFFFFFFFF;
+    idt[vector].offset_high = handler >> 32;
     idt[vector].segment = segment | (user ? 0x03 : 0x00);
     idt[vector].flags = IDT_FLAGS_VALID | IDT_FLAGS_INTERRUPT;
     idt[vector].reserved = 0;
