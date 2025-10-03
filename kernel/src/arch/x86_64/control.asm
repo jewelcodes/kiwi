@@ -100,7 +100,7 @@ arch_reload_code_segment:
     push rdi
     mov rdi, .next
     push rdi
-    retf
+    retfq
 
 .next:
     ret
