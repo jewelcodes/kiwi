@@ -45,4 +45,8 @@ void debug_print(int level, const char *file, const char *fmt, ...) {
     va_end(args);
     printf("\n");
     arch_spinlock_release(&debug_lock);
+
+    if(level == DEBUG_LEVEL_PANIC) {
+        for(;;);
+    }
 }
