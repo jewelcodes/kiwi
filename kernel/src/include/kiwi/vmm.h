@@ -25,8 +25,10 @@
 #pragma once
 
 #include <kiwi/types.h>
+#include <kiwi/arch/atomic.h>
 
 #define VMM_FANOUT                  8
+#define VMM_NODES_PER_PAGE          ((PAGE_SIZE / sizeof(VMMTreeNode)) - 1)
 
 #define VMM_PROT_READ               0x0001
 #define VMM_PROT_WRITE              0x0002
@@ -40,9 +42,10 @@
 
 #define VMM_FLAGS_GUARD             0x01
 #define VMM_FLAGS_COW               0x02
+#define VMM_FLAGS_UNALLOCATED       0x04
 
 typedef struct VMMTreeNode {
-    u64 base_virtual_address;
+    u64 base;
     u64 page_count;
     u16 prot;
     u8 type;
@@ -61,8 +64,14 @@ typedef struct VMMTreeNode {
 } VMMTreeNode;
 
 typedef struct VASpace {
+    lock_t lock;
     VMMTreeNode *root;
     uptr arch_page_tables;
+    u64 tree_size_pages;
 } VASpace;
 
 void vmm_init(void);
+VMMTreeNode *vmm_search(VMMTreeNode *root, u64 virtual);
+VMMTreeNode *vmm_lenient_search(VMMTreeNode *root, u64 virtual);
+VMMTreeNode *vmm_create_node(VASpace *vas, const VMMTreeNode *new_node);
+int vmm_delete_node(VASpace *vas, VMMTreeNode *node);
