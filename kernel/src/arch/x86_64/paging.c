@@ -129,6 +129,73 @@ no_memory:
     return 0;
 }
 
+int arch_unmap_page(uptr cr3, uptr virtual) {
+    int pml4_index = (virtual >> 39) & 0x1FF;
+    int pdp_index = (virtual >> 30) & 0x1FF;
+    int pd_index = (virtual >> 21) & 0x1FF;
+    int pt_index = (virtual >> 12) & 0x1FF;
+
+    uptr *pml4, *pdp, *pd, *pt;
+
+    pml4 = (uptr *) ((cr3 & ~PAGE_MASK) + hhdm_base);
+    if(!(pml4[pml4_index] & PAGE_PRESENT)) return -1;
+    pdp = (uptr *) ((pml4[pml4_index] & ~PAGE_MASK) + hhdm_base);
+
+    if(!(pdp[pdp_index] & PAGE_PRESENT)) return -1;
+    pd = (uptr *) ((pdp[pdp_index] & ~PAGE_MASK) + hhdm_base);
+
+    if(!(pd[pd_index] & PAGE_PRESENT)) return -1;
+    pt = (uptr *) ((pd[pd_index] & ~PAGE_MASK) + hhdm_base);
+
+    if(!(pt[pt_index] & PAGE_PRESENT)) return -1;
+
+    pt[pt_index] = 0;
+    return 0;
+}
+
+int arch_get_page(uptr cr3, uptr virtual, uptr *physical, u16 *prot) {
+    int pml4_index = (virtual >> 39) & 0x1FF;
+    int pdp_index = (virtual >> 30) & 0x1FF;
+    int pd_index = (virtual >> 21) & 0x1FF;
+    int pt_index = (virtual >> 12) & 0x1FF;
+
+    debug_info("attempt to get page info for VA=0x%llX", virtual);
+
+    uptr *pml4, *pdp, *pd, *pt;
+    u64 entry;
+
+    pml4 = (uptr *) ((cr3 & ~PAGE_MASK) + hhdm_base);
+    if(!(pml4[pml4_index] & PAGE_PRESENT)) return -1;
+
+    pdp = (uptr *) ((pml4[pml4_index] & ~PAGE_MASK) + hhdm_base);
+    if(!(pdp[pdp_index] & PAGE_PRESENT)) return -1;
+
+    pd = (uptr *) ((pdp[pdp_index] & ~PAGE_MASK) + hhdm_base);
+    if(!(pd[pd_index] & PAGE_PRESENT)) return -1;
+    if(pd[pd_index] & PAGE_SIZE_TOGGLE) {
+        entry = pd[pd_index];
+        goto done;
+    }
+
+    pt = (uptr *) ((pd[pd_index] & ~PAGE_MASK) + hhdm_base);
+    if(!(pt[pt_index] & PAGE_PRESENT)) return -1;
+    entry = pt[pt_index];
+
+done:
+    if(physical) {
+        *physical = entry & ~PAGE_MASK;
+    }
+
+    if(prot) {
+        *prot = 0;
+        if(entry & PAGE_WRITABLE) *prot |= VMM_PROT_WRITE;
+        if(entry & PAGE_USER) *prot |= VMM_PROT_USER;
+        *prot |= VMM_PROT_READ;
+    }
+
+    return 0;
+}
+
 uptr arch_paging_init(void) {
     kernel_paging_root = (uptr *) pmm_alloc_page();
     if(!kernel_paging_root) goto no_memory;
@@ -181,4 +248,8 @@ uptr arch_paging_init(void) {
 no_memory:
     debug_panic("unable to allocate memory for kernel page tables");
     for(;;);
+}
+
+void arch_switch_page_tables(uptr page_tables) {
+    arch_set_cr3(page_tables);
 }
