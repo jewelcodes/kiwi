@@ -44,8 +44,6 @@ static inline int find_free_bit(u64 bitmap) {
 }
 
 static VMMTreeNode *vmm_allocate_node(VASpace *vas) {
-    arch_switch_page_tables(vas->arch_page_tables);
-
     if(!vas->tree_size_pages) {
         vas->tree_size_pages = 1;
         u64 physical = pmm_alloc_page();
@@ -211,14 +209,11 @@ VMMTreeNode *vmm_create_node(VASpace *vas, const VMMTreeNode *new_node) {
         return NULL;
     }
 
-    arch_spinlock_acquire(&vas->lock);
-
     VMMTreeNode *parent = vmm_lenient_search(vas->root, new_node->base);
     if(!parent) {
         VMMTreeNode *new_root = vmm_allocate_node(vas);
         if(!new_root) {
             debug_error("failed to allocate new VMM root node");
-            arch_spinlock_release(&vas->lock);
             return NULL;
         }
 
@@ -250,7 +245,6 @@ VMMTreeNode *vmm_create_node(VASpace *vas, const VMMTreeNode *new_node) {
     VMMTreeNode *new_vmm_node = vmm_allocate_node(vas);
     if(!new_vmm_node) {
         debug_error("failed to allocate new VMM node");
-        arch_spinlock_release(&vas->lock);
         return NULL;
     }
 
@@ -276,7 +270,6 @@ VMMTreeNode *vmm_create_node(VASpace *vas, const VMMTreeNode *new_node) {
         VMMTreeNode *new_intermediate_node = vmm_allocate_node(vas);
         if(!new_intermediate_node) {
             debug_error("failed to allocate new intermediate VMM node");
-            arch_spinlock_release(&vas->lock);
             return NULL;
         }
 
@@ -307,7 +300,69 @@ VMMTreeNode *vmm_create_node(VASpace *vas, const VMMTreeNode *new_node) {
     }
 
     parent->children[parent->children_count++] = new_vmm_node;
+    return new_vmm_node;
+}
+
+void *vmm_allocate(VASpace *vas, u64 base, u64 limit, usize page_count, u16 prot) {
+    if(!vas || !vas->root || !page_count || base >= limit) {
+        return NULL;
+    }
+
+    arch_spinlock_acquire(&vas->lock);
+    arch_switch_page_tables(vas->arch_page_tables);
+
+    VMMTreeNode *parent = vmm_lenient_search(vas->root, base);
+    if(!parent) {
+        goto allocate;
+    }
+
+    if(parent->children_count == 0) {
+        parent = parent->parent;
+    }
+
+    u64 addr = base;
+    while(addr + page_count * PAGE_SIZE <= limit) {
+        int conflict = 0;
+        for(u16 i = 0; i < parent->children_count; i++) {
+            VMMTreeNode *child = parent->children[i];
+
+            if(!((addr + page_count * PAGE_SIZE <= child->base)
+                || (addr >= child->max_virtual_address))) {
+                conflict = 1;
+                addr = child->max_virtual_address;
+                break;
+            }
+        }
+
+        if(conflict) {
+            continue;
+        }
+
+        break;
+    }
+
+    if(addr + page_count * PAGE_SIZE > limit) {
+        arch_spinlock_release(&vas->lock);
+        return NULL;
+    }
+
+    base = addr;
+
+allocate:
+    VMMTreeNode new_node;
+    memset(&new_node, 0, sizeof(VMMTreeNode));
+    new_node.base = base;
+    new_node.page_count = page_count;
+    new_node.prot = prot;
+    new_node.type = VMM_TYPE_ANONYMOUS;
+    new_node.flags = VMM_FLAGS_UNALLOCATED;
+
+    VMMTreeNode *res = vmm_create_node(vas, &new_node);
+    if(!res) {
+        arch_spinlock_release(&vas->lock);
+        return NULL;
+    }
 
     arch_spinlock_release(&vas->lock);
-    return new_vmm_node;
+    return (void *) res->base;
 }
