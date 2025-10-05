@@ -70,10 +70,12 @@ typedef struct VASpace {
     u64 tree_size_pages;
 } VASpace;
 
+extern VASpace vmm;
+
 void vmm_init(void);
 VMMTreeNode *vmm_search(VMMTreeNode *root, u64 virtual);
 VMMTreeNode *vmm_lenient_search(VMMTreeNode *root, u64 virtual);
 VMMTreeNode *vmm_create_node(VASpace *vas, const VMMTreeNode *new_node);
-void vmm_page_fault(VASpace *vas, u64 virtual, int user, int write, int exec);
+int vmm_page_fault(VASpace *vas, u64 virtual, int user, int write, int exec);
 int vmm_delete_node(VASpace *vas, VMMTreeNode *node);
 void *vmm_allocate(VASpace *vas, u64 base, u64 limit, usize page_count, u16 prot);

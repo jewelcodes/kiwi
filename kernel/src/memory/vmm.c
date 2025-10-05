@@ -202,6 +202,16 @@ void vmm_init(void) {
 
     u64 gap = (kernel_node->base - (hhdm_node->max_virtual_address)) / PAGE_SIZE;
     vmm.root->max_gap_page_count = gap;
+
+    void *ptr1 = vmm_allocate(&vmm, ARCH_KERNEL_HEAP_BASE,
+        ARCH_KERNEL_HEAP_BASE + 0x20000000, 3, VMM_PROT_READ | VMM_PROT_WRITE);
+    debug_info("allocated 3 pages at 0x%llX", (uptr) ptr1);
+    debug_info("attempt to write into newly allocated memory");
+
+    strcpy((char *) ptr1, "Hello, world!");
+    debug_info("string at 0x%llX: %s", (uptr) ptr1, (char *) ptr1);
+
+    for(;;);
 }
 
 VMMTreeNode *vmm_create_node(VASpace *vas, const VMMTreeNode *new_node) {
@@ -365,4 +375,77 @@ allocate:
 
     arch_spinlock_release(&vas->lock);
     return (void *) res->base;
+}
+
+int vmm_page_fault(VASpace *vas, u64 virtual, int user, int write, int exec) {
+    if(!vas || !vas->root) {
+        return -1;
+    }
+
+    arch_spinlock_acquire(&vas->lock);
+    arch_switch_page_tables(vas->arch_page_tables);
+
+    debug_info("page fault @ 0x%llX (user=%d, write=%d, exec=%d)",
+        virtual, user, write, exec);
+
+    VMMTreeNode *node = vmm_search(vas->root, virtual);
+    if(!node) goto fail;
+
+    if(user && !(node->prot & VMM_PROT_USER)) goto fail;
+    if(write && !(node->prot & VMM_PROT_WRITE)) goto fail;
+    if(exec && !(node->prot & VMM_PROT_EXEC)) goto fail;
+
+    if(node->type == VMM_TYPE_ANONYMOUS) {
+        if(node->flags & VMM_FLAGS_UNALLOCATED) {
+
+            debug_info("found anonymous unallocated node with %llu pages @ 0x%llX",
+                node->page_count, node->base);
+            debug_info("allocating physical page for the faulting address");
+    
+            u64 physical = pmm_alloc_page();
+            if(!physical) {
+                debug_error("failed to allocate physical page for VMM node");
+                goto fail;
+            }
+
+            if(!arch_map_page(vas->arch_page_tables, virtual & ~PAGE_MASK, physical, node->prot)) {
+                pmm_free_page(physical);
+                debug_error("failed to map physical page for VMM node");
+                goto fail;
+            }
+
+            if(node->page_count == 1) {
+                node->flags &= ~VMM_FLAGS_UNALLOCATED;
+                node->backing = physical;
+                return 0;
+            }
+
+            debug_info("splitting vmm node to allocate single page");
+
+            VMMTreeNode new_node;
+            memset(&new_node, 0, sizeof(VMMTreeNode));
+            new_node.base = virtual & ~PAGE_MASK;
+            new_node.page_count = 1;
+            new_node.prot = node->prot;
+            new_node.type = VMM_TYPE_ANONYMOUS;
+            new_node.flags = 0;
+            new_node.backing = physical;
+            VMMTreeNode *res = vmm_create_node(vas, &new_node);
+            if(!res) {
+                pmm_free_page(physical);
+                debug_error("failed to create new VMM node during split");
+                goto fail;
+            }
+
+            return 0;
+        }
+    }
+
+    debug_error("unhandled page fault @ 0x%llX", virtual);
+    debug_error("erroneous node:");
+    vmm_debug_node(node, 0);
+
+fail:
+    arch_spinlock_release(&vas->lock);
+    return -1;
 }

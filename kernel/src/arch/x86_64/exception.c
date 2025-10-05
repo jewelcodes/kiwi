@@ -24,6 +24,9 @@
 
 #include <kiwi/arch/x86_64.h>
 #include <kiwi/debug.h>
+#include <kiwi/vmm.h>
+
+#define PAGE_FAULT                  14
 
 static const char *exceptions[] = {
     "divide error",                         // 0x00
@@ -135,7 +138,15 @@ void arch_exception_handler(u64 vector, u64 error_code, uptr state) {
     const char *message = (vector < 32 && exceptions[vector])
         ? exceptions[vector] : "undefined exception";
 
-    debug_error("exception %u @ 0x%llX: %s (0x%llX)",
+    if(vector == 14) {
+        u64 ptr = arch_get_cr2();
+        if(!vmm_page_fault(&vmm, ptr, (frame->cs & 0x03) != 0, (error_code & 0x02) != 0,
+            (error_code & 0x04) != 0)) {
+            return;
+        }
+    }
+
+    debug_panic("exception %u @ 0x%llX: %s (0x%llX)",
         vector, frame->rip, message, error_code);
 
     for(;;);
