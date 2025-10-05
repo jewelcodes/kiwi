@@ -222,20 +222,20 @@ VMMTreeNode *vmm_create_node(VASpace *vas, const VMMTreeNode *new_node) {
             return NULL;
         }
 
-        u64 new_root_base = (new_node->base < vas->root->base)
+        u64 base = (new_node->base < vas->root->base)
             ? new_node->base : vas->root->base;
-        u64 new_root_end = ((new_node->base + new_node->page_count * PAGE_SIZE)
+        u64 end = ((new_node->base + new_node->page_count * PAGE_SIZE)
             > vas->root->max_virtual_address)
             ? (new_node->base + new_node->page_count * PAGE_SIZE)
             : vas->root->max_virtual_address;
 
-        new_root->base = new_root_base;
-        new_root->page_count = (new_root_end - new_root_base) / PAGE_SIZE;
+        new_root->base = base;
+        new_root->page_count = (end - base + PAGE_SIZE - 1) / PAGE_SIZE;
         new_root->prot = 0;
         new_root->type = 0;
         new_root->children_count = 1;
         new_root->children[0] = vas->root;
-        new_root->max_virtual_address = new_root_end;
+        new_root->max_virtual_address = end;
 
         u64 gap1 = (vas->root->base - new_root->base) / PAGE_SIZE;
         u64 gap2 = (new_root->max_virtual_address - vas->root->max_virtual_address)
@@ -280,15 +280,25 @@ VMMTreeNode *vmm_create_node(VASpace *vas, const VMMTreeNode *new_node) {
             return NULL;
         }
 
-        new_intermediate_node->base = parent->children[min_gap_index]->base;
-        new_intermediate_node->page_count = (parent->max_virtual_address
-            - new_intermediate_node->base) / PAGE_SIZE;
+        u64 base = (new_node->base < parent->children[min_gap_index]->base)
+            ? new_node->base : parent->children[min_gap_index]->base;
+        u64 end = ((new_node->base + new_node->page_count * PAGE_SIZE)
+            > parent->children[min_gap_index]->max_virtual_address)
+            ? (new_node->base + new_node->page_count * PAGE_SIZE)
+            : parent->children[min_gap_index]->max_virtual_address;
+
+        new_intermediate_node->base = base;
+        new_intermediate_node->page_count = (end - base + PAGE_SIZE - 1) / PAGE_SIZE;
         new_intermediate_node->prot = 0;
         new_intermediate_node->type = 0;
         new_intermediate_node->children_count = 1;
         new_intermediate_node->children[0] = parent->children[min_gap_index];
-        new_intermediate_node->max_virtual_address = parent->max_virtual_address;
-        new_intermediate_node->max_gap_page_count = 0;
+        new_intermediate_node->max_virtual_address = end;
+
+        u64 gap1 = (parent->children[min_gap_index]->base - new_intermediate_node->base) / PAGE_SIZE;
+        u64 gap2 = (new_intermediate_node->max_virtual_address - parent->children[min_gap_index]->max_virtual_address)
+            / PAGE_SIZE;
+        new_intermediate_node->max_gap_page_count = (gap1 > gap2) ? gap1 : gap2;
         new_intermediate_node->parent = parent;
         parent->children[min_gap_index]->parent = new_intermediate_node;
         parent->children[min_gap_index] = new_intermediate_node;
