@@ -205,3 +205,99 @@ void vmm_init(void) {
     u64 gap = (kernel_node->base - (hhdm_node->max_virtual_address)) / PAGE_SIZE;
     vmm.root->max_gap_page_count = gap;
 }
+
+VMMTreeNode *vmm_create_node(VASpace *vas, const VMMTreeNode *new_node) {
+    if(!vas || !new_node || !vas->root) {
+        return NULL;
+    }
+
+    arch_spinlock_acquire(&vas->lock);
+
+    VMMTreeNode *parent = vmm_lenient_search(vas->root, new_node->base);
+    if(!parent) {
+        VMMTreeNode *new_root = vmm_allocate_node(vas);
+        if(!new_root) {
+            debug_error("failed to allocate new VMM root node");
+            arch_spinlock_release(&vas->lock);
+            return NULL;
+        }
+
+        u64 new_root_base = (new_node->base < vas->root->base)
+            ? new_node->base : vas->root->base;
+        u64 new_root_end = ((new_node->base + new_node->page_count * PAGE_SIZE)
+            > vas->root->max_virtual_address)
+            ? (new_node->base + new_node->page_count * PAGE_SIZE)
+            : vas->root->max_virtual_address;
+
+        new_root->base = new_root_base;
+        new_root->page_count = (new_root_end - new_root_base) / PAGE_SIZE;
+        new_root->prot = 0;
+        new_root->type = 0;
+        new_root->children_count = 1;
+        new_root->children[0] = vas->root;
+        new_root->max_virtual_address = new_root_end;
+
+        u64 gap1 = (vas->root->base - new_root->base) / PAGE_SIZE;
+        u64 gap2 = (new_root->max_virtual_address - vas->root->max_virtual_address)
+            / PAGE_SIZE;
+        new_root->max_gap_page_count = (gap1 > gap2) ? gap1 : gap2;
+        vas->root->parent = new_root;
+        vas->root = new_root;
+
+        parent = new_root;
+    }
+
+    VMMTreeNode *new_vmm_node = vmm_allocate_node(vas);
+    if(!new_vmm_node) {
+        debug_error("failed to allocate new VMM node");
+        arch_spinlock_release(&vas->lock);
+        return NULL;
+    }
+
+    memcpy(new_vmm_node, new_node, sizeof(VMMTreeNode));
+    new_vmm_node->parent = parent;
+    new_vmm_node->children_count = 0;
+    new_vmm_node->max_virtual_address = new_vmm_node->base
+        + new_vmm_node->page_count * PAGE_SIZE;
+    new_vmm_node->max_gap_page_count = 0;
+
+    if(parent->children_count >= VMM_FANOUT) {
+        // find node with smallest gap to split
+        u16 min_gap_index = 0;
+        u64 min_gap = (parent->children[0]->base - parent->base) / PAGE_SIZE;
+        for(u16 i = 1; i < parent->children_count; i++) {
+            u64 gap = (parent->children[i]->base - parent->base) / PAGE_SIZE;
+            if(gap < min_gap) {
+                min_gap = gap;
+                min_gap_index = i;
+            }
+        }
+
+        VMMTreeNode *new_intermediate_node = vmm_allocate_node(vas);
+        if(!new_intermediate_node) {
+            debug_error("failed to allocate new intermediate VMM node");
+            arch_spinlock_release(&vas->lock);
+            return NULL;
+        }
+
+        new_intermediate_node->base = parent->children[min_gap_index]->base;
+        new_intermediate_node->page_count = (parent->max_virtual_address
+            - new_intermediate_node->base) / PAGE_SIZE;
+        new_intermediate_node->prot = 0;
+        new_intermediate_node->type = 0;
+        new_intermediate_node->children_count = 1;
+        new_intermediate_node->children[0] = parent->children[min_gap_index];
+        new_intermediate_node->max_virtual_address = parent->max_virtual_address;
+        new_intermediate_node->max_gap_page_count = 0;
+        new_intermediate_node->parent = parent;
+        parent->children[min_gap_index]->parent = new_intermediate_node;
+        parent->children[min_gap_index] = new_intermediate_node;
+
+        parent = new_intermediate_node;
+    }
+
+    parent->children[parent->children_count++] = new_vmm_node;
+
+    arch_spinlock_release(&vas->lock);
+    return new_vmm_node;
+}
