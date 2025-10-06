@@ -138,9 +138,9 @@ void arch_exception_handler(u64 vector, u64 error_code, uptr state) {
     const char *message = (vector < 32 && exceptions[vector])
         ? exceptions[vector] : "undefined exception";
 
-    if(vector == 14) {
+    if(vector == PAGE_FAULT) {
         u64 ptr = arch_get_cr2();
-        if(!vmm_page_fault(&vmm, ptr, (frame->cs & 0x03) != 0, (error_code & 0x02) != 0,
+        if(!vmm_page_fault(&kvmm, ptr, (frame->cs & 0x03) != 0, (error_code & 0x02) != 0,
             (error_code & 0x04) != 0)) {
             return;
         }

@@ -31,7 +31,7 @@
 #include <kiwi/arch/memmap.h>
 #include <string.h>
 
-VASpace vmm;
+VASpace kvmm;
 
 static inline int find_free_bit(u64 bitmap) {
     for(int i = 0; i < VMM_NODES_PER_PAGE; i++) {
@@ -150,23 +150,23 @@ VMMTreeNode *vmm_lenient_search(VMMTreeNode *root, u64 virtual) {
 }
 
 void vmm_init(void) {
-    memset(&vmm, 0, sizeof(VASpace));
-    vmm.lock = LOCK_INITIAL;
+    memset(&kvmm, 0, sizeof(VASpace));
+    kvmm.lock = LOCK_INITIAL;
 
-    vmm.arch_page_tables = arch_paging_init();
-    debug_info("kernel page tables = 0x%llX", vmm.arch_page_tables);
+    kvmm.arch_page_tables = arch_paging_init();
+    debug_info("kernel page tables = 0x%llX", kvmm.arch_page_tables);
 
-    vmm.root = vmm_allocate_node(&vmm);
-    if(!vmm.root) {
+    kvmm.root = vmm_allocate_node(&kvmm);
+    if(!kvmm.root) {
         debug_panic("failed to create VMM root node");
     }
 
-    VMMTreeNode *hhdm_node = vmm_allocate_node(&vmm);
+    VMMTreeNode *hhdm_node = vmm_allocate_node(&kvmm);
     if(!hhdm_node) {
         debug_panic("failed to create VMM HHDM node");
     }
 
-    VMMTreeNode *kernel_node = vmm_allocate_node(&vmm);
+    VMMTreeNode *kernel_node = vmm_allocate_node(&kvmm);
     if(!kernel_node) {
         debug_panic("failed to create VMM kernel node");
     }
@@ -178,8 +178,8 @@ void vmm_init(void) {
     hhdm_node->children_count = 0;
     hhdm_node->max_virtual_address = hhdm_node->base + pmm.highest_address;
     hhdm_node->max_gap_page_count = 0;
-    hhdm_node->parent = vmm.root;
-    vmm.root->children[vmm.root->children_count++] = hhdm_node;
+    hhdm_node->parent = kvmm.root;
+    kvmm.root->children[kvmm.root->children_count++] = hhdm_node;
 
     kernel_node->base = ARCH_KERNEL_IMAGE_BASE;
     kernel_node->page_count = (kiwi_boot_info.lowest_free_address + LARGE_PAGE_SIZE - 1)
@@ -190,28 +190,18 @@ void vmm_init(void) {
     kernel_node->max_virtual_address = kernel_node->base
         + kiwi_boot_info.lowest_free_address - 0x100000;
     kernel_node->max_gap_page_count = 0;
-    kernel_node->parent = vmm.root;
-    vmm.root->children[vmm.root->children_count++] = kernel_node;
+    kernel_node->parent = kvmm.root;
+    kvmm.root->children[kvmm.root->children_count++] = kernel_node;
 
-    vmm.root->base = hhdm_node->base;
-    vmm.root->max_virtual_address = kernel_node->max_virtual_address;
-    vmm.root->page_count = (vmm.root->max_virtual_address - vmm.root->base) / PAGE_SIZE;
-    vmm.root->prot = 0;
-    vmm.root->type = 0;
-    vmm.root->parent = NULL;
+    kvmm.root->base = hhdm_node->base;
+    kvmm.root->max_virtual_address = kernel_node->max_virtual_address;
+    kvmm.root->page_count = (kvmm.root->max_virtual_address - kvmm.root->base) / PAGE_SIZE;
+    kvmm.root->prot = 0;
+    kvmm.root->type = 0;
+    kvmm.root->parent = NULL;
 
     u64 gap = (kernel_node->base - (hhdm_node->max_virtual_address)) / PAGE_SIZE;
-    vmm.root->max_gap_page_count = gap;
-
-    void *ptr1 = vmm_allocate(&vmm, ARCH_KERNEL_HEAP_BASE,
-        ARCH_KERNEL_HEAP_BASE + 0x20000000, 3, VMM_PROT_READ | VMM_PROT_WRITE);
-    debug_info("allocated 3 pages at 0x%llX", (uptr) ptr1);
-    debug_info("attempt to write into newly allocated memory");
-
-    strcpy((char *) ptr1, "Hello, world!");
-    debug_info("string at 0x%llX: %s", (uptr) ptr1, (char *) ptr1);
-
-    for(;;);
+    kvmm.root->max_gap_page_count = gap;
 }
 
 VMMTreeNode *vmm_create_node(VASpace *vas, const VMMTreeNode *new_node) {
@@ -314,7 +304,11 @@ VMMTreeNode *vmm_create_node(VASpace *vas, const VMMTreeNode *new_node) {
 }
 
 void *vmm_allocate(VASpace *vas, u64 base, u64 limit, usize page_count, u16 prot) {
-    if(!vas || !vas->root || !page_count || base >= limit) {
+    if(!vas) {
+        vas = &kvmm;
+    }
+
+    if(!vas->root || !page_count || base >= limit) {
         return NULL;
     }
 
@@ -417,6 +411,7 @@ int vmm_page_fault(VASpace *vas, u64 virtual, int user, int write, int exec) {
             if(node->page_count == 1) {
                 node->flags &= ~VMM_FLAGS_UNALLOCATED;
                 node->backing = physical;
+                arch_spinlock_release(&vas->lock);
                 return 0;
             }
 
@@ -437,6 +432,7 @@ int vmm_page_fault(VASpace *vas, u64 virtual, int user, int write, int exec) {
                 goto fail;
             }
 
+            arch_spinlock_release(&vas->lock);
             return 0;
         }
     }

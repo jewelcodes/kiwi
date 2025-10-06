@@ -26,6 +26,7 @@
 
 #include <kiwi/types.h>
 #include <kiwi/arch/atomic.h>
+#include <kiwi/arch/memmap.h>
 
 #define VMM_FANOUT                  8
 #define VMM_NODES_PER_PAGE          ((PAGE_SIZE / sizeof(VMMTreeNode)) - 1)
@@ -70,7 +71,7 @@ typedef struct VASpace {
     u64 tree_size_pages;
 } VASpace;
 
-extern VASpace vmm;
+extern VASpace kvmm;
 
 void vmm_init(void);
 VMMTreeNode *vmm_search(VMMTreeNode *root, u64 virtual);

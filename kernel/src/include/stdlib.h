@@ -24,6 +24,8 @@
 
 #pragma once
 
+#include <kiwi/types.h>
+
 char *itoa(int value, char *str, int base);
 char *uitoa(unsigned int value, char *str, int base);
 char *ulltoa(unsigned long long value, char *str, int base);
@@ -33,3 +35,4 @@ char *ultoa(unsigned long value, char *str, int base);
 long long atoll(const char *str);
 long atol(const char *str);
 int atoi(const char *str);
+void *malloc(size_t size);
