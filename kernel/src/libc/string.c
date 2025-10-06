@@ -25,28 +25,59 @@
 #include <string.h>
 #include <kiwi/types.h>
 
+void *__fast_memcpy(void *dst, const void *src, size_t n);
+void *__fast_memmove_forward(void *dst, const void *src, size_t n);
+void *__fast_memmove_backward(void *dst, const void *src, size_t n);
+void *__fast_memset(void *s, int c, size_t n);
+
 void *memcpy(void *dst, const void *src, size_t n) {
-    char *d = (char *) dst;
-    const char *s = (const char *) src;
-    for(size_t i = 0; i < n; i++) {
-        d[i] = s[i];
+    if(n == 0 || dst == src) {
+        return dst;
     }
-    return dst;
+
+    uptr dst_start = (uptr) dst;
+    uptr dst_end = dst_start + n;
+    uptr src_start = (uptr) src;
+    uptr src_end = src_start + n;
+
+    if((dst_start < src_end) || (src_start < dst_end)) {
+        usize overlap_size = (dst_end < src_end)
+            ? (dst_end - src_start)
+            : (src_end - dst_start);
+
+        if(overlap_size < 8) {
+            return memmove(dst, src, n);
+        }
+    }
+
+    return __fast_memcpy(dst, src, n);
 }
 
 void *memmove(void *dst, const void *src, size_t n) {
-    char *d = (char *) dst;
-    const char *s = (const char *) src;
-    if(d < s) {
-        for(size_t i = 0; i < n; i++) {
-            d[i] = s[i];
-        }
-    } else if(d > s) {
-        for(size_t i = n; i > 0; i--) {
-            d[i - 1] = s[i - 1];
+    if(!n || dst == src) {
+        return dst;
+    }
+
+    uptr dst_start = (uptr) dst;
+    uptr dst_end = dst_start + n;
+    uptr src_start = (uptr) src;
+    uptr src_end = src_start + n;
+
+    if((dst_start < src_end) || (src_start < dst_end)) {
+        usize overlap_size = (dst_end < src_end)
+            ? (dst_end - src_start)
+            : (src_end - dst_start);
+
+        if(overlap_size >= 8) {
+            return __fast_memcpy(dst, src, n);
         }
     }
-    return dst;
+
+    if(dst_start < src_start) {
+        return __fast_memmove_forward(dst, src, n);
+    }
+
+    return __fast_memmove_backward(dst, src, n);
 }
 
 size_t strlen(const char *str) {
@@ -65,11 +96,7 @@ char *strcpy(char *dst, const char *src) {
 }
 
 void *memset(void *s, int c, size_t n) {
-    char *p = (char *) s;
-    for(size_t i = 0; i < n; i++) {
-        p[i] = (char) c;
-    }
-    return s;
+    return __fast_memset(s, c, n);
 }
 
 int memcmp(const void *s1, const void *s2, size_t n) {
