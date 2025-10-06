@@ -35,4 +35,8 @@ char *ultoa(unsigned long value, char *str, int base);
 long long atoll(const char *str);
 long atol(const char *str);
 int atoi(const char *str);
+
 void *malloc(size_t size);
+void free(void *ptr);
+void *realloc(void *ptr, size_t size);
+void *calloc(size_t count, size_t size);

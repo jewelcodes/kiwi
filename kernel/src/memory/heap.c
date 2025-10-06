@@ -24,6 +24,8 @@
 
 #include <kiwi/vmm.h>
 #include <kiwi/arch/atomic.h>
+#include <string.h>
+#include <stdlib.h>
 
 typedef struct HeapHeader {
     u64 size;
@@ -115,4 +117,82 @@ void *malloc(size_t size) {
     current->free = 0;
     arch_spinlock_release(&heap_lock);
     return (void *) ((uptr) current + sizeof(HeapHeader));
+}
+
+void free(void *ptr) {
+    if(!ptr) {
+        return;
+    }
+
+    arch_spinlock_acquire(&heap_lock);
+    HeapHeader *header = (HeapHeader *) ((uptr) ptr - sizeof(HeapHeader));
+    header->free = 1;
+    arch_spinlock_release(&heap_lock);
+}
+
+void *realloc(void *ptr, size_t size) {
+    if(!ptr) {
+        return malloc(size);
+    }
+
+    if(size == 0) {
+        free(ptr);
+        return NULL;
+    }
+
+    arch_spinlock_acquire(&heap_lock);
+    HeapHeader *header = (HeapHeader *) ((uptr) ptr - sizeof(HeapHeader));
+    if(header->size >= size) {
+        arch_spinlock_release(&heap_lock);
+        return ptr;
+    }
+
+    if(size % sizeof(HeapHeader)) {
+        size += sizeof(HeapHeader) - (size % sizeof(HeapHeader));
+    }
+
+    if(!header->next) {
+        uptr remaining_size = (uptr) heap_end - (uptr) header
+            - sizeof(HeapHeader) - header->size;
+        
+        usize total_size = size + sizeof(HeapHeader);
+        if(remaining_size >= total_size) {
+            header->size = size;
+            arch_spinlock_release(&heap_lock);
+            return ptr;
+        }
+
+        usize page_count = (total_size - remaining_size + PAGE_SIZE - 1) / PAGE_SIZE;
+        void *new_block = vmm_allocate(NULL, (uptr) heap_end, (u64) -1,
+            page_count, VMM_PROT_READ | VMM_PROT_WRITE);
+        if(!new_block) {
+            arch_spinlock_release(&heap_lock);
+            return NULL;
+        }
+
+        heap_total_size += page_count * PAGE_SIZE;
+        heap_end = (HeapHeader *) ((uptr) new_block + page_count * PAGE_SIZE);
+        header->size = size;
+        arch_spinlock_release(&heap_lock);
+        return ptr;
+    }
+
+    arch_spinlock_release(&heap_lock);
+    void *new_ptr = malloc(size);
+    if(!new_ptr) {
+        return NULL;
+    }
+
+    memcpy(new_ptr, ptr, header->size);
+    free(ptr);
+    return new_ptr;
+}
+
+void *calloc(size_t count, size_t size) {
+    size_t total_size = count * size;
+    void *ptr = malloc(total_size);
+    if(ptr) {
+        memset(ptr, 0, total_size);
+    }
+    return ptr;
 }
