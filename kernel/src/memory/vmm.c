@@ -379,9 +379,6 @@ int vmm_page_fault(VASpace *vas, u64 virtual, int user, int write, int exec) {
     arch_spinlock_acquire(&vas->lock);
     arch_switch_page_tables(vas->arch_page_tables);
 
-    debug_info("page fault @ 0x%llX (user=%d, write=%d, exec=%d)",
-        virtual, user, write, exec);
-
     VMMTreeNode *node = vmm_search(vas->root, virtual);
     if(!node) goto fail;
 
@@ -391,11 +388,6 @@ int vmm_page_fault(VASpace *vas, u64 virtual, int user, int write, int exec) {
 
     if(node->type == VMM_TYPE_ANONYMOUS) {
         if(node->flags & VMM_FLAGS_UNALLOCATED) {
-
-            debug_info("found anonymous unallocated node with %llu pages @ 0x%llX",
-                node->page_count, node->base);
-            debug_info("allocating physical page for the faulting address");
-    
             u64 physical = pmm_alloc_page();
             if(!physical) {
                 debug_error("failed to allocate physical page for VMM node");
@@ -414,8 +406,6 @@ int vmm_page_fault(VASpace *vas, u64 virtual, int user, int write, int exec) {
                 arch_spinlock_release(&vas->lock);
                 return 0;
             }
-
-            debug_info("splitting vmm node to allocate single page");
 
             VMMTreeNode new_node;
             memset(&new_node, 0, sizeof(VMMTreeNode));
