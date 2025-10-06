@@ -31,6 +31,8 @@
 #define PAGE_PRESENT                0x001
 #define PAGE_WRITABLE               0x002
 #define PAGE_USER                   0x004
+#define PAGE_WRITE_THROUGH          0x008
+#define PAGE_CACHE_DISABLE          0x010
 #define PAGE_SIZE_TOGGLE            0x080
 #define PAGE_NO_EXECUTE             (1ULL << 63)
 
@@ -40,3 +42,4 @@ uptr arch_map_large_page(uptr page_tables, uptr virtual, uptr physical, u16 prot
 int arch_unmap_page(uptr page_tables, uptr virtual);
 int arch_get_page(uptr page_tables, uptr virtual, uptr *physical, u16 *prot);
 void arch_switch_page_tables(uptr page_tables);
+void arch_set_uncacheable(uptr cr3, uptr virtual);

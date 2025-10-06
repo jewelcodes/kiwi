@@ -253,3 +253,29 @@ no_memory:
 void arch_switch_page_tables(uptr page_tables) {
     arch_set_cr3(page_tables);
 }
+
+void arch_set_uncacheable(uptr cr3, uptr virtual) {
+    int pml4_index = (virtual >> 39) & 0x1FF;
+    int pdp_index = (virtual >> 30) & 0x1FF;
+    int pd_index = (virtual >> 21) & 0x1FF;
+    int pt_index = (virtual >> 12) & 0x1FF;
+
+    uptr *pml4, *pdp, *pd, *pt;
+
+    pml4 = (uptr *) ((cr3 & ~PAGE_MASK) + hhdm_base);
+    if(!(pml4[pml4_index] & PAGE_PRESENT)) return;
+    pdp = (uptr *) ((pml4[pml4_index] & ~PAGE_MASK) + hhdm_base);
+
+    if(!(pdp[pdp_index] & PAGE_PRESENT)) return;
+    pd = (uptr *) ((pdp[pdp_index] & ~PAGE_MASK) + hhdm_base);
+    if(!(pd[pd_index] & PAGE_PRESENT)) return;
+
+    if(pd[pd_index] & PAGE_SIZE_TOGGLE) {
+        pd[pd_index] |= PAGE_WRITE_THROUGH | PAGE_CACHE_DISABLE;
+        return;
+    }
+
+    pt = (uptr *) ((pd[pd_index] & ~PAGE_MASK) + hhdm_base);
+    if(!(pt[pt_index] & PAGE_PRESENT)) return;
+    pt[pt_index] |= PAGE_WRITE_THROUGH | PAGE_CACHE_DISABLE;
+}

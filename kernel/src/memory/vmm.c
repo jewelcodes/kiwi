@@ -425,8 +425,26 @@ int vmm_page_fault(VASpace *vas, u64 virtual, int user, int write, int exec) {
             arch_spinlock_release(&vas->lock);
             return 0;
         }
+
+        goto unhandled;
     }
 
+    if(node->type == VMM_TYPE_DEVICE) {
+        usize pages_into_node = (virtual - node->base) / PAGE_SIZE;
+        uptr physical = node->backing + pages_into_node * PAGE_SIZE;
+
+        if(!arch_map_page(vas->arch_page_tables, virtual & ~PAGE_MASK, physical, node->prot)) {
+            debug_error("failed to map device page for VMM node");
+            goto fail;
+        }
+
+        arch_set_uncacheable(vas->arch_page_tables, virtual & ~PAGE_MASK);
+
+        arch_spinlock_release(&vas->lock);
+        return 0;
+    }
+
+unhandled:
     debug_error("unhandled page fault @ 0x%llX", virtual);
     debug_error("erroneous node:");
     vmm_debug_node(node, 0);
@@ -434,4 +452,77 @@ int vmm_page_fault(VASpace *vas, u64 virtual, int user, int write, int exec) {
 fail:
     arch_spinlock_release(&vas->lock);
     return -1;
+}
+
+void *vmm_create_mmio(VASpace *vas, u64 physical, usize size, u16 prot) {
+    if(!vas) {
+        vas = &kvmm;
+    }
+
+    if(!vas->root || !size) {
+        return NULL;
+    }
+
+    usize page_count = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+    u64 base = ARCH_MMIO_BASE;
+    u64 limit = (u64) -1;
+
+    arch_spinlock_acquire(&vas->lock);
+    arch_switch_page_tables(vas->arch_page_tables);
+
+    VMMTreeNode *parent = vmm_lenient_search(vas->root, base);
+    if(!parent) {
+        goto allocate;
+    }
+
+    if(parent->children_count == 0) {
+        parent = parent->parent;
+    }
+
+    u64 addr = base;
+    while(addr + page_count * PAGE_SIZE <= limit) {
+        int conflict = 0;
+        for(u16 i = 0; i < parent->children_count; i++) {
+            VMMTreeNode *child = parent->children[i];
+
+            if(!((addr + page_count * PAGE_SIZE <= child->base)
+                || (addr >= child->max_virtual_address))) {
+                conflict = 1;
+                addr = child->max_virtual_address;
+                break;
+            }
+        }
+
+        if(conflict) {
+            continue;
+        }
+
+        break;
+    }
+
+    if(addr + page_count * PAGE_SIZE > limit) {
+        arch_spinlock_release(&vas->lock);
+        return NULL;
+    }
+
+    base = addr;
+
+allocate:
+    VMMTreeNode new_node;
+    memset(&new_node, 0, sizeof(VMMTreeNode));
+    new_node.base = base;
+    new_node.page_count = page_count;
+    new_node.prot = prot;
+    new_node.type = VMM_TYPE_DEVICE;
+    new_node.flags = 0;
+    new_node.backing = physical;
+
+    VMMTreeNode *res = vmm_create_node(vas, &new_node);
+    if(!res) {
+        arch_spinlock_release(&vas->lock);
+        return NULL;
+    }
+
+    arch_spinlock_release(&vas->lock);
+    return (void *) res->base;
 }
