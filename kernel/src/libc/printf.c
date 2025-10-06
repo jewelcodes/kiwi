@@ -311,9 +311,9 @@ print_unsigned_value:
                         unsigned long long int value;
                         char buffer[32];
                         if(length_modifier == LENGTH_CHAR) {
-                            value = (unsigned char) va_arg(ap, int);
+                            value = (unsigned char) va_arg(ap, unsigned int);
                         } else if(length_modifier == LENGTH_SHORT) {
-                            value = (unsigned short) va_arg(ap, int);
+                            value = (unsigned short) va_arg(ap, unsigned int);
                         } else if(length_modifier == LENGTH_LONG) {
                             value = va_arg(ap, unsigned long);
                         } else if(length_modifier == LENGTH_LONG_LONG) {
@@ -325,7 +325,7 @@ print_unsigned_value:
                         } else if(length_modifier == LENGTH_PTRDIFF_T) {
                             value = (unsigned long long) va_arg(ap, ptrdiff_t);
                         } else {
-                            value = va_arg(ap, int);
+                            value = va_arg(ap, unsigned int);
                         }
 
                         ultoa(value, buffer, base);
