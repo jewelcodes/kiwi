@@ -25,6 +25,7 @@
 #include <kiwi/tty.h>
 #include <kiwi/arch/atomic.h>
 #include <stddef.h>
+#include <string.h>
 
 KernelTerminal kernel_terminal = {
     .lock = LOCK_INITIAL,
@@ -58,6 +59,39 @@ const u32 palette[] = {
     0xE9E46C,       // yellow
     0xF5F5F5        // white
 };
+
+static void tty_scroll(void) {
+    if(!kernel_terminal.front_buffer) {
+        return;
+    }
+
+    if(!kernel_terminal.back_buffer) {
+        kernel_terminal.y = 0;
+        kernel_terminal.x = 0;
+        return;
+    }
+
+    u32 *first_row = (u32 *) kernel_terminal.back_buffer + ((kernel_terminal.height/2
+        - (CONSOLE_HEIGHT*FONT_HEIGHT)/2) * kernel_terminal.pitch / 4);
+    u32 *second_row = first_row + (FONT_HEIGHT * kernel_terminal.pitch / 4);
+    u32 *last_row = first_row + ((CONSOLE_HEIGHT - 1) * FONT_HEIGHT * kernel_terminal.pitch / 4);
+
+    u32 lines_to_move = (CONSOLE_HEIGHT - 1) * FONT_HEIGHT;
+    memcpy(first_row, second_row, lines_to_move * kernel_terminal.pitch);
+
+    for(int i = 0; i < FONT_HEIGHT; i++) {
+        u32 *row = (u32 *)((uptr) last_row + i * kernel_terminal.pitch);
+        for(int j = 0; j < kernel_terminal.width; j++) {
+            row[j] = kernel_terminal.bg;
+        }
+    }
+
+    memcpy(kernel_terminal.front_buffer, kernel_terminal.back_buffer,
+        kernel_terminal.height * kernel_terminal.pitch);
+
+    kernel_terminal.x = 0;
+    kernel_terminal.y = CONSOLE_HEIGHT - 1;
+}
 
 void tty_clear(void) {
     if(!kernel_terminal.front_buffer)
@@ -112,10 +146,12 @@ void tty_putchar(char c) {
 
     for(int j = 0; j < FONT_HEIGHT; j++) {
         u8 data = font_data[j];
-        u32 *row = (u32 *)((uptr) kernel_terminal.front_buffer + (y + j) * pitch + x * 4);
+        u32 *row_front = (u32 *)((uptr) kernel_terminal.front_buffer + (y + j) * pitch + x * 4);
+        u32 *row_back = (u32 *)((uptr) kernel_terminal.back_buffer + (y + j) * pitch + x * 4);
         for(int i = 0; i < FONT_WIDTH; i++) {
             u32 color = (data & 0x80) ? kernel_terminal.fg : kernel_terminal.bg;
-            row[i] = color;
+            row_front[i] = color;
+            if(kernel_terminal.back_buffer) row_back[i] = color;
             data <<= 1;
         }
     }
@@ -129,16 +165,7 @@ check_boundaries:
     }
 
     if(kernel_terminal.y >= CONSOLE_HEIGHT) {
-        // TODO: scroll up instead
-        kernel_terminal.x = 0;
-        kernel_terminal.y = 0;
-
-        for(int i = 0; i < kernel_terminal.height; i++) {
-            u32 *row = (u32 *)((uptr) kernel_terminal.front_buffer + i * pitch);
-            for(int j = 0; j < kernel_terminal.width; j++) {
-                row[j] = kernel_terminal.bg;
-            }
-        }
+        tty_scroll();
     }
 
     arch_spinlock_release(&kernel_terminal.lock);

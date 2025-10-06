@@ -28,7 +28,9 @@
 #include <kiwi/version.h>
 #include <kiwi/pmm.h>
 #include <kiwi/vmm.h>
+#include <kiwi/acpi.h>
 #include <string.h>
+#include <stdlib.h>
 
 void arch_dt_setup(void);
 void arch_exceptions_setup(void);
@@ -59,7 +61,20 @@ int arch_early_main(KiwiBootInfo *boot_info_ptr) {
     arch_exceptions_setup();
     pmm_init();
     vmm_init();
-    
+
+    kernel_terminal.back_buffer = malloc(kernel_terminal.pitch * kernel_terminal.height);
+    if(!kernel_terminal.back_buffer) {
+        debug_error("failed to allocate back buffer");
+        for(;;);
+    }
+
+    memcpy(kernel_terminal.back_buffer, kernel_terminal.front_buffer,
+        kernel_terminal.pitch * kernel_terminal.height);
+
+    debug_info("allocated back buffer @ 0x%08llX",
+        (uptr) kernel_terminal.back_buffer);
+
+    acpi_tables_init();
 
     for(;;);
 }
