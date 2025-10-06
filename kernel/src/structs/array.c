@@ -67,12 +67,37 @@ int array_push(Array *array, u64 item) {
     return 0;
 }
 
-int array_pop(Array *array, u64 *item) {
+int array_pop_back(Array *array, u64 *item) {
     if(array->count == 0) {
         return -1;
     }
 
     u64 popped_item = array->items[--array->count];
+    if((array->count > 0) && (array->count <= (array->capacity / 4))
+        && ((array->capacity / 2) >= ARRAY_INITIAL_CAPACITY)) {
+        u64 new_capacity = array->capacity / 2;
+        u64 *new_items = (u64 *) realloc(array->items, sizeof(u64) * new_capacity);
+        if(new_items) {
+            array->items = new_items;
+            array->capacity = new_capacity;
+        }
+    }
+
+    *item = popped_item;
+    return 0;
+}
+
+int array_pop_front(Array *array, u64 *item) {
+    if(array->count == 0) {
+        return -1;
+    }
+
+    u64 popped_item = array->items[0];
+    for(u64 i = 1; i < array->count; i++) {
+        array->items[i - 1] = array->items[i];
+    }
+    array->count--;
+
     if((array->count > 0) && (array->count <= (array->capacity / 4))
         && ((array->capacity / 2) >= ARRAY_INITIAL_CAPACITY)) {
         u64 new_capacity = array->capacity / 2;

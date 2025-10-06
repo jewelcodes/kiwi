@@ -35,4 +35,5 @@ typedef struct Array {
 Array *array_create(void);
 void array_destroy(Array *array);
 int array_push(Array *array, u64 item);
-int array_pop(Array *array, u64 *item);
+int array_pop_back(Array *array, u64 *item);
+int array_pop_front(Array *array, u64 *item);
