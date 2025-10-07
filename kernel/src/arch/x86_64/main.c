@@ -30,6 +30,7 @@
 #include <kiwi/vmm.h>
 #include <kiwi/acpi.h>
 #include <kiwi/arch/apic.h>
+#include <kiwi/arch/timer.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -77,6 +78,7 @@ int arch_early_main(KiwiBootInfo *boot_info_ptr) {
 
     acpi_tables_init();
     apic_init();
+    arch_timer_init();
 
     for(;;);
 }

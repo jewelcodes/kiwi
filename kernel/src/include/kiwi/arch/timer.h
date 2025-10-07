@@ -26,50 +26,6 @@
 
 #include <kiwi/types.h>
 
-typedef struct ACPIRSDP {
-    char signature[8];
-    u8 checksum;
-    char oem_id[6];
-    u8 revision;
-    u32 rsdt;
-    u32 length;
-    u64 xsdt;
-    u8 extended_checksum;
-    u8 reserved[3];
-} __attribute__((packed)) ACPIRSDP;
-
-typedef struct ACPIHeader {
-    char signature[4];
-    u32 length;
-    u8 revision;
-    u8 checksum;
-    char oem_id[6];
-    char oem_table_id[8];
-    u32 oem_revision;
-    u32 asl_compiler_id;
-    u32 asl_compiler_revision;
-} __attribute__((packed)) ACPIHeader;
-
-typedef struct ACPIRSDT {
-    ACPIHeader header;
-    u32 entries[];
-} __attribute__((packed)) ACPIRSDT;
-
-typedef struct ACPIXSDT {
-    ACPIHeader header;
-    u64 entries[];
-} __attribute__((packed)) ACPIXSDT;
-
-typedef struct ACPIAddress {
-    u8 address_space_id;
-    u8 register_bit_width;
-    u8 register_bit_offset;
-    u8 reserved;
-    u64 address;
-} __attribute__((packed)) ACPIAddress;
-
-#define ACPI_MEMORY_SPACE           0
-#define ACPI_IO_SPACE               1
-
-void acpi_tables_init(void);
-void *acpi_find_table(const char *signature, usize index);
+void arch_timer_init(void);
+u64 arch_timer_frequency(void);
+void arch_timer_block(u64 ns);
