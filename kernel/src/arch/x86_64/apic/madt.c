@@ -115,5 +115,4 @@ void apic_init(void) {
     }
 
     lapic_init(lapic);
-    for(;;);
 }
