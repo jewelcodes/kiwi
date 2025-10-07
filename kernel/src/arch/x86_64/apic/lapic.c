@@ -23,13 +23,12 @@
  */
 
 #include <kiwi/arch/apic.h>
-#include <kiwi/structs/array.h>
 #include <kiwi/vmm.h>
 #include <kiwi/debug.h>
 #include <stdlib.h>
 
 static void *lapic = NULL;
-static Array *lapics = NULL;
+Array *lapics = NULL;
 
 void lapic_write(u32 reg, u32 val) {
     u32 volatile *ptr = (u32 volatile *) ((uptr) lapic + reg);

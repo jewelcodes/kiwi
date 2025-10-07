@@ -137,10 +137,16 @@ arch_halt:
     hlt
     ret
 
-global arch_invlpg
+global arch_flush_tlb
 align 16
-arch_invlpg:
+arch_flush_tlb:
     invlpg [rdi]
+    ret
+
+global arch_flush_cache
+align 16
+arch_flush_cache:
+    wbinvd
     ret
 
 global arch_read_cpuid

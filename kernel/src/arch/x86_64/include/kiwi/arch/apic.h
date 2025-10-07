@@ -26,6 +26,7 @@
 
 #include <kiwi/types.h>
 #include <kiwi/acpi.h>
+#include <kiwi/structs/array.h>
 
 typedef struct ACPIMADT {
     ACPIHeader header;
@@ -157,6 +158,8 @@ typedef struct LocalAPIC {
     u8 enabled;
     u8 up;
 } LocalAPIC;
+
+extern Array *lapics;
 
 void apic_init(void);
 void lapic_init(uptr mmio_base);

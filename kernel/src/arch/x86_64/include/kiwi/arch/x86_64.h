@@ -148,6 +148,7 @@ void arch_reload_data_segments(u16 selector);
 void arch_enable_irqs(void);
 void arch_disable_irqs(void);
 void arch_halt(void);
-void arch_invlpg(uptr addr);
+void arch_flush_tlb(uptr addr);
+void arch_flush_cache(void);
 int arch_install_isr(u8 vector, uptr handler, u16 segment, int user);
 void arch_read_cpuid(u32 leaf, CPUIDRegisters *regs);
