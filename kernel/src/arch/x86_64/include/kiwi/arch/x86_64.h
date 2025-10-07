@@ -123,6 +123,13 @@ typedef struct ExceptionStackFrame {
     u64 ss;
 } __attribute__((packed)) ExceptionStackFrame;
 
+typedef struct CPUIDRegisters {
+    u32 eax;
+    u32 ebx;
+    u32 ecx;
+    u32 edx;
+} CPUIDRegisters;
+
 extern GDTEntry gdt[GDT_ENTRIES];
 extern IDTEntry idt[IDT_ENTRIES];
 
@@ -143,3 +150,4 @@ void arch_disable_irqs(void);
 void arch_halt(void);
 void arch_invlpg(uptr addr);
 int arch_install_isr(u8 vector, uptr handler, u16 segment, int user);
+void arch_read_cpuid(u32 leaf, CPUIDRegisters *regs);

@@ -142,3 +142,27 @@ align 16
 arch_invlpg:
     invlpg [rdi]
     ret
+
+global arch_read_cpuid
+align 16
+arch_read_cpuid:
+    push rbx
+
+    ; this will allow us to detect zeroes when a function isn't supported
+    xor ebx, ebx
+    xor ecx, ecx
+    xor edx, edx
+
+    mov eax, edi        ; leaf
+    push rsi            ; regs
+    mov ecx, [rsi+8]
+    cpuid
+    pop rsi
+    mov [rsi], eax
+    mov [rsi+4], ebx
+    mov [rsi+8], ecx
+    mov [rsi+12], edx
+
+    pop rbx
+
+    ret

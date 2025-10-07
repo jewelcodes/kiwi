@@ -24,8 +24,10 @@
 
 #include <kiwi/arch/apic.h>
 #include <kiwi/arch/ioport.h>
+#include <kiwi/arch/x86_64.h>
 #include <kiwi/debug.h>
 #include <kiwi/acpi.h>
+#include <string.h>
 
 static ACPIMADT *madt;
 
@@ -36,6 +38,7 @@ void apic_init(void) {
         for(;;);
     }
 
+    uptr lapic = madt->lapic_mmio_base;
     debug_info("local APIC @ 0x%X", madt->lapic_mmio_base);
 
     if(madt->flags & MADT_FLAGS_LEGACY_PIC) {
@@ -43,6 +46,12 @@ void apic_init(void) {
         arch_outport8(0x21, 0xFF);
         arch_outport8(0xA1, 0xFF);
     }
+
+    CPUIDRegisters cpuid;
+    memset(&cpuid, 0, sizeof(CPUIDRegisters));
+    arch_read_cpuid(1, &cpuid);
+
+    u8 bsp_id = (cpuid.ebx >> 24) & 0xFF;
 
     MADTEntryHeader *entry = (MADTEntryHeader *) madt->entries;
     while(((uptr) entry) < ((uptr) madt + madt->header.length)) {
@@ -54,6 +63,8 @@ void apic_init(void) {
                     lapic->acpi_id,
                     lapic->flags,
                     (lapic->flags & MADT_LAPIC_FLAGS_ENABLED) ? "enabled" : "disabled");
+
+                lapic_register(lapic, lapic->apic_id == bsp_id);
                 break;
             }
 
@@ -88,6 +99,13 @@ void apic_init(void) {
                 break;
             }
 
+            case MADT_ENTRY_TYPE_LAPIC_OVERRIDE: {
+                MADTLocalAPICOverride *lapic_override = (MADTLocalAPICOverride *) entry;
+                debug_info("override local APIC @ 0x%llX", lapic_override->mmio_base);
+                lapic = lapic_override->mmio_base;
+                break;
+            }
+
             default:
                 debug_warn("unknown MADT entry type: %u with size %u", entry->type, entry->length);
                 break;
@@ -96,5 +114,6 @@ void apic_init(void) {
         entry = (MADTEntryHeader *) ((uptr) entry + entry->length);
     }
 
+    lapic_init(lapic);
     for(;;);
 }
