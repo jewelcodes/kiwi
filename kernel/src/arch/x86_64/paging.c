@@ -80,6 +80,7 @@ uptr arch_map_page(uptr cr3, uptr virtual, uptr physical, u16 prot) {
     uptr new_entry = (physical & ~PAGE_MASK) | PAGE_PRESENT;
     if(prot & VMM_PROT_WRITE) new_entry |= PAGE_WRITABLE;
     if(prot & VMM_PROT_USER) new_entry |= PAGE_USER;
+    if(!(prot & VMM_PROT_EXEC)) new_entry |= PAGE_NO_EXECUTE;
 
     pt[pt_index] = new_entry;
     return virtual;
@@ -121,6 +122,7 @@ uptr arch_map_large_page(uptr cr3, uptr virtual, uptr physical, u16 prot) {
     uptr new_entry = (physical & ~PAGE_MASK) | PAGE_PRESENT | PAGE_SIZE_TOGGLE;
     if(prot & VMM_PROT_WRITE) new_entry |= PAGE_WRITABLE;
     if(prot & VMM_PROT_USER) new_entry |= PAGE_USER;
+    if(!(prot & VMM_PROT_EXEC)) new_entry |= PAGE_NO_EXECUTE;
 
     pd[pd_index] = new_entry;
     return virtual;
@@ -159,8 +161,6 @@ int arch_get_page(uptr cr3, uptr virtual, uptr *physical, u16 *prot) {
     int pd_index = (virtual >> 21) & 0x1FF;
     int pt_index = (virtual >> 12) & 0x1FF;
 
-    debug_info("attempt to get page info for VA=0x%llX", virtual);
-
     uptr *pml4, *pdp, *pd, *pt;
     u64 entry;
 
@@ -190,6 +190,7 @@ done:
         *prot = 0;
         if(entry & PAGE_WRITABLE) *prot |= VMM_PROT_WRITE;
         if(entry & PAGE_USER) *prot |= VMM_PROT_USER;
+        if(!(entry & PAGE_NO_EXECUTE)) *prot |= VMM_PROT_EXEC;
         *prot |= VMM_PROT_READ;
     }
 
@@ -197,6 +198,16 @@ done:
 }
 
 uptr arch_paging_init(void) {
+    CPUIDRegisters cpuid;
+    memset(&cpuid, 0, sizeof(CPUIDRegisters));
+    arch_read_cpuid(0x80000001, &cpuid);
+    if(!(cpuid.edx & (1 << 20))) { // NX bit
+        debug_error("CPU doesn't support NX bit");
+        for(;;);
+    }
+
+    arch_write_msr(MSR_EFER, arch_read_msr(MSR_EFER) | MSR_EFER_NX);
+
     kernel_paging_root = (uptr *) pmm_alloc_page();
     if(!kernel_paging_root) goto no_memory;
 
@@ -223,7 +234,7 @@ uptr arch_paging_init(void) {
         if(!arch_map_large_page((uptr) kernel_paging_root,
                 ARCH_KERNEL_IMAGE_BASE + i * LARGE_PAGE_SIZE,
                 i * LARGE_PAGE_SIZE,
-                VMM_PROT_READ | VMM_PROT_WRITE)) {
+                VMM_PROT_READ | VMM_PROT_WRITE | VMM_PROT_EXEC)) {
             goto no_memory;
         }
     }

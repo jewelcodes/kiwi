@@ -65,6 +65,8 @@ static void smp_cpu_info_init(LocalAPIC *lapic) {
         for(;;);
     }
 
+    arch_write_msr(MSR_EFER, arch_read_msr(MSR_EFER) | MSR_EFER_SYSCALL);
+
     if(cpuid.edx & (1 << 25)) { // fast fxsave/restore
         arch_write_msr(MSR_EFER, arch_read_msr(MSR_EFER) | MSR_EFER_FFXSR);
     }
@@ -196,7 +198,7 @@ void smp_init(void) {
     // temporarily map low memory so the AP can access it
     for(int i = 0; i < 8; i++) {
         arch_map_page(arch_get_cr3(), i * PAGE_SIZE, i * PAGE_SIZE,
-            VMM_PROT_READ | VMM_PROT_WRITE);
+            VMM_PROT_READ | VMM_PROT_WRITE | VMM_PROT_EXEC);
     }
 
     u64 volatile *cr3_ptr = (u64 volatile *) CR3_PTR;

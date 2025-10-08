@@ -196,5 +196,11 @@ arch_read_msr:
 global arch_get_kernel_cpu_info
 align 16
 arch_get_kernel_cpu_info:
-    mov rax, [fs:0]
+    mov rax, [gs:0]
+    ret
+
+global arch_swapgs
+align 16
+arch_swapgs:
+    swapgs
     ret

@@ -50,7 +50,7 @@ ap_early_main:
 
     mov ecx, 0xC0000080
     rdmsr
-    or ah, 1
+    or ah, 9    ; long mode, NX
     wrmsr
 
     mov eax, cr0

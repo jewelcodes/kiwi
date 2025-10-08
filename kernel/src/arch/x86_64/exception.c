@@ -97,7 +97,7 @@ void isr30_handler(void);
 void isr31_handler(void);
 
 void arch_exceptions_setup(void) {
-    debug_info("setting up exception handlers");
+    debug_info("setting up exception handlers...");
 
     arch_install_isr(0x00, (uptr) isr0_handler, GDT_KERNEL_CODE << 3, 0);
     arch_install_isr(0x01, (uptr) isr1_handler, GDT_KERNEL_CODE << 3, 0);
@@ -133,21 +133,33 @@ void arch_exceptions_setup(void) {
     arch_install_isr(0x1F, (uptr) isr31_handler, GDT_KERNEL_CODE << 3, 0);
 }
 
-void arch_exception_handler(u64 vector, u64 error_code, uptr state) {
-    ExceptionStackFrame *frame = (ExceptionStackFrame *) state;
+void arch_exception_handler(u64 vector, u64 error_code,
+                            ExceptionStackFrame *frame) {
+    int user = (frame->cs & 0x03) != 0;
+    if(user) {
+        arch_swapgs();
+    }
+
     const char *message = (vector < 32 && exceptions[vector])
         ? exceptions[vector] : "undefined exception";
 
     if(vector == PAGE_FAULT) {
         u64 ptr = arch_get_cr2();
-        if(!vmm_page_fault(&kvmm, ptr, (frame->cs & 0x03) != 0, (error_code & 0x02) != 0,
-            (error_code & 0x04) != 0)) {
-            return;
+        int write = (error_code & 0x02) != 0;
+        int exec = (error_code & 0x10) != 0;
+        if(!vmm_page_fault(&kvmm, ptr, user, write, exec)) {
+            goto safe;
         }
     }
 
     debug_panic("exception %u @ 0x%llX: %s (0x%llX)",
         vector, frame->rip, message, error_code);
-
     for(;;);
+
+safe:
+    if(user) {
+        arch_swapgs();
+    }
+
+    return;
 }
