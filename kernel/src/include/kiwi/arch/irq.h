@@ -26,8 +26,4 @@
 
 #include <kiwi/types.h>
 
-#define ARCH_GLOBAL_TIMER_FREQUENCY             1000
-
-void arch_timer_init(void);
-u64 arch_timer_frequency(void);
-void arch_timer_block(u64 ns);
+void arch_ack_irq(void *arch_specific);

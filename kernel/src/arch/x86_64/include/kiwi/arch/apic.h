@@ -24,9 +24,8 @@
 
 #pragma once
 
-#include <kiwi/types.h>
-#include <kiwi/acpi.h>
 #include <kiwi/structs/array.h>
+#include <kiwi/acpi.h>
 
 typedef struct ACPIMADT {
     ACPIHeader header;
@@ -157,6 +156,8 @@ typedef struct LocalAPIC {
     u32 apic_id;
     u8 enabled;
     u8 up;
+    u64 timer_frequency;
+    u64 timer_ticks;
 } LocalAPIC;
 
 extern Array *lapics;
@@ -168,3 +169,4 @@ u32 lapic_read(u32 reg);
 void lapic_register(MADTLocalAPIC *entry, int up);
 LocalAPIC *lapic_get_by_apic_id(u32 apic_id);
 LocalAPIC *lapic_get_by_acpi_id(u32 acpi_id);
+void lapic_timer_init(void);

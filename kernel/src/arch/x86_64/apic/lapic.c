@@ -71,7 +71,7 @@ no_memory:
 }
 
 void lapic_init(uptr mmio_base) {
-    if(!lapic) {
+    if((!lapic) && mmio_base) {
         lapic = vmm_create_mmio(NULL, mmio_base, 1, VMM_PROT_READ | VMM_PROT_WRITE);
     }
 
@@ -115,4 +115,8 @@ LocalAPIC *lapic_get_by_acpi_id(u32 acpi_id) {
     }
 
     return NULL;
+}
+
+void arch_ack_irq(void *arch_specific) {
+    lapic_write(LAPIC_EOI, 0);
 }

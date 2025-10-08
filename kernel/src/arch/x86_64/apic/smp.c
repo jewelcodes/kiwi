@@ -50,6 +50,25 @@ static int booted = 0;
 static Array *cpu_infos;
 
 static void smp_cpu_info_init(LocalAPIC *lapic) {
+    CPUIDRegisters cpuid;
+    memset(&cpuid, 0, sizeof(CPUIDRegisters));
+    arch_read_cpuid(7, &cpuid);
+    if(cpuid.ebx & 1) { // rdfsbase, rdgsbase
+        arch_set_cr4(arch_get_cr4() | CR4_FSGSBASE);
+    }
+
+    memset(&cpuid, 0, sizeof(CPUIDRegisters));
+    arch_read_cpuid(0x80000001, &cpuid);
+
+    if(!(cpuid.edx & (1 << 11))) { // fast syscall/sysret
+        debug_error("CPU doesn't support SYSCALL/SYSRET");
+        for(;;);
+    }
+
+    if(cpuid.edx & (1 << 25)) { // fast fxsave/restore
+        arch_write_msr(MSR_EFER, arch_read_msr(MSR_EFER) | MSR_EFER_FFXSR);
+    }
+
     GDTEntry *new_gdt = (GDTEntry *) calloc(GDT_ENTRIES, sizeof(GDTEntry));
     if(!new_gdt) {
         goto no_memory;
@@ -109,7 +128,14 @@ static void smp_cpu_info_init(LocalAPIC *lapic) {
         goto no_memory;
     }
 
-    arch_enable_irqs();
+    // this state looks inverted but it is actually correct because we are in
+    // kernel mode now and so the actual base used is MSR_GS_BASE.
+    // before switching to user mode, we will run swapgs
+
+    arch_write_msr(MSR_KERNEL_GS_BASE, 0);
+    arch_write_msr(MSR_GS_BASE, (u64) cpu_info);
+    arch_write_msr(MSR_FS_BASE, 0);
+
     lapic->up = 1;
     return;
 
@@ -135,7 +161,9 @@ void ap_main(void) {
         for(;;);
     }
 
+    lapic_init(0);
     smp_cpu_info_init(lapic);
+    lapic_timer_init();
 
     booted = 1;
     arch_flush_cache();
@@ -157,6 +185,7 @@ void smp_init(void) {
     }
 
     smp_cpu_info_init(bsp);
+    lapic_timer_init();
 
     if(lapics->count < 2) {
         return;

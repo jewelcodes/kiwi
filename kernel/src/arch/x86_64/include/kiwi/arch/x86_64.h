@@ -71,6 +71,11 @@
 #define MSR_EFER_NX             0x0800
 #define MSR_EFER_FFXSR          0x4000
 
+#define CR0_WRITE_PROTECT       0x00010000
+#define CR0_NOT_WRITE_THROUGH   0x20000000
+#define CR0_CACHE_DISABLE       0x40000000
+#define CR4_FSGSBASE            0x00010000
+
 typedef struct GDTR {
     u16 limit;
     u64 base;
@@ -137,6 +142,29 @@ typedef struct ExceptionStackFrame {
     u64 ss;
 } __attribute__((packed)) ExceptionStackFrame;
 
+typedef struct IRQStackFrame {
+    u64 r15;
+    u64 r14;
+    u64 r13;
+    u64 r12;
+    u64 r11;
+    u64 r10;
+    u64 r9;
+    u64 r8;
+    u64 rbp;
+    u64 rdi;
+    u64 rsi;
+    u64 rdx;
+    u64 rcx;
+    u64 rbx;
+    u64 rax;
+    u64 rip;
+    u64 cs;
+    u64 rflags;
+    u64 rsp;        // only valid during ring 3 -> 0 transition
+    u64 ss;         // only valid during ring 3 -> 0 transition
+} __attribute__((packed)) IRQStackFrame;
+
 typedef struct CPUIDRegisters {
     u32 eax;
     u32 ebx;
@@ -168,3 +196,4 @@ int arch_install_isr(u8 vector, uptr handler, u16 segment, int user);
 void arch_read_cpuid(u32 leaf, CPUIDRegisters *regs);
 void arch_write_msr(u32 msr, u64 value);
 u64 arch_read_msr(u32 msr);
+void arch_swapgs();
