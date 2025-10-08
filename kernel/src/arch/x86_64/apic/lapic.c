@@ -86,3 +86,33 @@ void lapic_init(uptr mmio_base) {
     lapic_write(LAPIC_LVT_ERROR, LAPIC_LVT_MASK);
     lapic_write(LAPIC_LVT_TIMER, LAPIC_LVT_MASK);
 }
+
+LocalAPIC *lapic_get_by_apic_id(u32 apic_id) {
+    if(!lapics) {
+        return NULL;
+    }
+
+    for(u64 i = 0; i < lapics->count; i++) {
+        LocalAPIC *lapic = (LocalAPIC *) lapics->items[i];
+        if(lapic && lapic->apic_id == apic_id) {
+            return lapic;
+        }
+    }
+
+    return NULL;
+}
+
+LocalAPIC *lapic_get_by_acpi_id(u32 acpi_id) {
+    if(!lapics) {
+        return NULL;
+    }
+
+    for(u64 i = 0; i < lapics->count; i++) {
+        LocalAPIC *lapic = (LocalAPIC *) lapics->items[i];
+        if(lapic && lapic->acpi_id == acpi_id) {
+            return lapic;
+        }
+    }
+
+    return NULL;
+}

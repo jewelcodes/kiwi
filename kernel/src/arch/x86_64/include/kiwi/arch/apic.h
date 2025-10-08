@@ -166,3 +166,5 @@ void lapic_init(uptr mmio_base);
 void lapic_write(u32 reg, u32 val);
 u32 lapic_read(u32 reg);
 void lapic_register(MADTLocalAPIC *entry, int up);
+LocalAPIC *lapic_get_by_apic_id(u32 apic_id);
+LocalAPIC *lapic_get_by_acpi_id(u32 acpi_id);

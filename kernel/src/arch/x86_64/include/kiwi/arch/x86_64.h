@@ -41,6 +41,7 @@
 #define GDT_ACCESS_WRITABLE     0x02
 #define GDT_ACCESS_DC           0x04
 #define GDT_ACCESS_EXEC         0x08
+#define GDT_ACCESS_TSS          (GDT_ACCESS_ACCESSED | GDT_ACCESS_EXEC)
 #define GDT_ACCESS_CODE_DATA    0x10
 #define GDT_ACCESS_DPL0         0x00
 #define GDT_ACCESS_DPL3         0x60
@@ -56,6 +57,19 @@
 #define IDT_FLAGS_TRAP          0x0F00
 #define IDT_FLAGS_DPL0          0x0000
 #define IDT_FLAGS_DPL3          0x6000
+
+#define MSR_EFER                0xC0000080
+#define MSR_FS_BASE             0xC0000100
+#define MSR_GS_BASE             0xC0000101
+#define MSR_KERNEL_GS_BASE      0xC0000102
+#define MSR_STAR                0xC0000081
+#define MSR_LSTAR               0xC0000082
+#define MSR_CSTAR               0xC0000083
+#define MSR_SFMASK              0xC0000084
+
+#define MSR_EFER_SYSCALL        0x0001
+#define MSR_EFER_NX             0x0800
+#define MSR_EFER_FFXSR          0x4000
 
 typedef struct GDTR {
     u16 limit;
@@ -152,3 +166,5 @@ void arch_flush_tlb(uptr addr);
 void arch_flush_cache(void);
 int arch_install_isr(u8 vector, uptr handler, u16 segment, int user);
 void arch_read_cpuid(u32 leaf, CPUIDRegisters *regs);
+void arch_write_msr(u32 msr, u64 value);
+u64 arch_read_msr(u32 msr);

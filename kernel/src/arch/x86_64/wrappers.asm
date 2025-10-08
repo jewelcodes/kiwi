@@ -172,3 +172,29 @@ arch_read_cpuid:
     pop rbx
 
     ret
+
+global arch_write_msr
+align 16
+arch_write_msr:
+    mov ecx, edi
+    mov rax, rsi
+    mov rdx, rax
+    shr rdx, 32
+    wrmsr
+    ret
+
+global arch_read_msr
+align 16
+arch_read_msr:
+    mov ecx, edi
+    rdmsr
+    shl rdx, 32
+    and eax, 0xFFFFFFFF
+    or rax, rdx
+    ret
+
+global arch_get_kernel_cpu_info
+align 16
+arch_get_kernel_cpu_info:
+    mov rax, [fs:0]
+    ret

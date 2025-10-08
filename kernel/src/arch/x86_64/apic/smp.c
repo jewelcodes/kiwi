@@ -22,9 +22,11 @@
  * SOFTWARE.
  */
 
+#include <kiwi/structs/array.h>
 #include <kiwi/arch/x86_64.h>
 #include <kiwi/arch/apic.h>
 #include <kiwi/arch/smp.h>
+#include <kiwi/arch/mp.h>
 #include <kiwi/arch/paging.h>
 #include <kiwi/debug.h>
 #include <kiwi/pmm.h>
@@ -32,7 +34,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define AP_INITIAL_STACK_PAGES  8           /* 32 KB */
+#define AP_INITIAL_STACK_PAGES  8                   /* 32 KB */
+#define IRQ_STACK_SIZE          (16 * PAGE_SIZE)    /* 64 KB */
+#define USER_STACK_SIZE         (16 * PAGE_SIZE)    /* 64 KB */
 
 #define AP_ENTRY_POINT          0x1000
 #define CR3_PTR                 0x2000
@@ -43,9 +47,95 @@ extern u8 ap_early_main[];
 extern u8 ap_early_main_end[];
 
 static int booted = 0;
+static Array *cpu_infos;
+
+static void smp_cpu_info_init(LocalAPIC *lapic) {
+    GDTEntry *new_gdt = (GDTEntry *) calloc(GDT_ENTRIES, sizeof(GDTEntry));
+    if(!new_gdt) {
+        goto no_memory;
+    }
+
+    memcpy(new_gdt, gdt, sizeof(GDTEntry) * GDT_ENTRIES);
+
+    TSS *tss = (TSS *) calloc(1, sizeof(TSS));
+    if(!tss) {
+        goto no_memory;
+    }
+
+    void *irq_stack = calloc(1, IRQ_STACK_SIZE);
+    if(!irq_stack) {
+        goto no_memory;
+    }
+
+    void *user_stack = calloc(1, USER_STACK_SIZE);
+    if(!user_stack) {
+        goto no_memory;
+    }
+
+    tss->rsp0 = (u64) irq_stack + IRQ_STACK_SIZE;
+    tss->ist[0] = tss->rsp0;
+    tss->iomap_offset = 0x68;
+    memset(tss->iomap, 0xFF, sizeof(tss->iomap));
+    tss->ones = 0xFF;
+
+    new_gdt[GDT_TSS_LOW].base_low = (uptr) tss;
+    new_gdt[GDT_TSS_LOW].base_middle = ((uptr) tss >> 16);
+    new_gdt[GDT_TSS_LOW].base_high = ((uptr) tss >> 24);
+    new_gdt[GDT_TSS_LOW].limit_low = sizeof(TSS) - 1;
+    new_gdt[GDT_TSS_LOW].access = GDT_ACCESS_TSS | GDT_ACCESS_PRESENT;
+
+    u64 *high = (u64 *) &new_gdt[GDT_TSS_HIGH];
+    *high = (uptr) tss >> 32;
+
+    GDTR gdtr;
+    gdtr.limit = (sizeof(GDTEntry) * GDT_ENTRIES) - 1;
+    gdtr.base = (uptr) new_gdt;
+    arch_load_gdt(&gdtr);
+    arch_reload_code_segment(GDT_KERNEL_CODE << 3);
+    arch_reload_data_segments(GDT_KERNEL_DATA << 3);
+    arch_load_tss(GDT_TSS_LOW << 3);
+
+    CPUInfo *cpu_info = (CPUInfo *) calloc(1, sizeof(CPUInfo));
+    if(!cpu_info) {
+        debug_error("failed to allocate CPU info");
+        for(;;);
+    }
+
+    cpu_info->cpu_info = cpu_info;
+    cpu_info->stack = (void *) ((uptr) user_stack + USER_STACK_SIZE);
+    cpu_info->local_apic = lapic;
+
+    if(array_push(cpu_infos, (uptr) cpu_info)) {
+        goto no_memory;
+    }
+
+    arch_enable_irqs();
+    lapic->up = 1;
+    return;
+
+no_memory:
+    debug_error("failed to allocate memory for CPU info");
+    for(;;);
+}
 
 void ap_main(void) {
-    debug_info("CPU is up and running");
+    IDTR idtr;
+    idtr.limit = sizeof(idt) - 1;
+    idtr.base = (u64)&idt;
+    arch_load_idt(&idtr);
+
+    CPUIDRegisters cpuid;
+    memset(&cpuid, 0, sizeof(CPUIDRegisters));
+    arch_read_cpuid(1, &cpuid);
+    u8 apic_id = (cpuid.ebx >> 24) & 0xFF;
+
+    LocalAPIC *lapic = lapic_get_by_apic_id(apic_id);
+    if(!lapic) {
+        debug_error("failed to find AP %u in LAPIC list", apic_id);
+        for(;;);
+    }
+
+    smp_cpu_info_init(lapic);
 
     booted = 1;
     arch_flush_cache();
@@ -53,6 +143,21 @@ void ap_main(void) {
 }
 
 void smp_init(void) {
+    cpu_infos = array_create();
+
+    CPUIDRegisters cpuid;
+    memset(&cpuid, 0, sizeof(CPUIDRegisters));
+    arch_read_cpuid(1, &cpuid);
+    u8 bsp_id = (cpuid.ebx >> 24) & 0xFF;
+
+    LocalAPIC *bsp = lapic_get_by_apic_id(bsp_id);
+    if(!bsp) {
+        debug_error("failed to find BSP in LAPIC list");
+        for(;;);
+    }
+
+    smp_cpu_info_init(bsp);
+
     if(lapics->count < 2) {
         return;
     }
