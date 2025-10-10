@@ -23,5 +23,69 @@
  */
 
 #include <kiwi/boot.h>
+#include <kiwi/debug.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_KERNEL_ARGS             64
 
 KiwiBootInfo kiwi_boot_info;
+
+int parse_boot_args(char ***argv) {
+    char arg[512];
+    int argc = 0;
+    int argi = 0;
+
+    *argv = calloc(MAX_KERNEL_ARGS, sizeof(char *));
+    if(!*argv) {
+        debug_error("failed to allocate memory for kernel args");
+        for(;;);
+    }
+
+    memset(arg, 0, sizeof(arg));
+
+    int quote_mode = 0;
+
+    for(int i = 0; i < 512; i++) {
+        if(kiwi_boot_info.command_line[i] == '"') {
+            quote_mode = !quote_mode;
+            continue;
+        }
+
+        if(!quote_mode && (kiwi_boot_info.command_line[i] == ' ')) {
+            if(argi == 0) {
+                continue;
+            }
+        }
+
+        if(quote_mode) {
+            arg[argi++] = kiwi_boot_info.command_line[i];
+            continue;
+        }
+
+        if((kiwi_boot_info.command_line[i] == ' ')
+            || (kiwi_boot_info.command_line[i] == '\n')
+            || (!kiwi_boot_info.command_line[i])) {
+            (*argv)[argc] = strdup(arg);
+            if(!(*argv)[argc]) {
+                debug_error("failed to allocate memory for arg %u", argc);
+                for(;;);
+            }
+            argc++;
+            if(argc >= MAX_KERNEL_ARGS) {
+                break;
+            }
+
+            argi = 0;
+            memset(arg, 0, sizeof(arg));
+
+            if(!kiwi_boot_info.command_line[i]) {
+                break;
+            }
+        } else {
+            arg[argi++] = kiwi_boot_info.command_line[i];
+        }
+    }
+
+    return argc;
+}

@@ -22,8 +22,9 @@
  * SOFTWARE.
  */
 
-#include <string.h>
 #include <kiwi/types.h>
+#include <string.h>
+#include <stdlib.h>
 
 void *__fast_memcpy(void *dst, const void *src, size_t n);
 void *__fast_memmove_forward(void *dst, const void *src, size_t n);
@@ -116,4 +117,14 @@ int strcmp(const char *s1, const char *s2) {
         s2++;
     }
     return (unsigned char)*s1 - (unsigned char)*s2;
+}
+
+char *strdup(const char *s) {
+    size_t len = strlen(s);
+    char *dup = malloc(len + 1);
+    if(!dup) {
+        return NULL;
+    }
+    strcpy(dup, s);
+    return dup;
 }

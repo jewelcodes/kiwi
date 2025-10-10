@@ -82,5 +82,12 @@ int arch_early_main(KiwiBootInfo *boot_info_ptr) {
     arch_timer_init();
     smp_init();
 
+    char **argv;
+    int argc = parse_boot_args(&argv);
+    debug_info("parsed %d kernel args", argc);
+    for(int i = 0; i < argc; i++) {
+        debug_info("  arg[%d]: %s", i, argv[i]);
+    }
+
     for(;;);
 }

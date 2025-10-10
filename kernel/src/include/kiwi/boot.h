@@ -67,3 +67,5 @@ typedef struct {
 }__attribute__((packed)) KiwiBootInfo;
 
 extern KiwiBootInfo kiwi_boot_info;
+
+int parse_boot_args(char ***argv);

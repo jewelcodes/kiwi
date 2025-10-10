@@ -87,13 +87,6 @@ void lapic_timer_irq(IRQStackFrame *state) {
     CPUInfo *cpu = arch_get_kernel_cpu_info();
     cpu->local_apic->timer_ticks++;
 
-    if(!(cpu->local_apic->timer_ticks % ARCH_GLOBAL_TIMER_FREQUENCY)) {
-        debug_info("%u second%s on core %u", 
-            cpu->local_apic->timer_ticks / ARCH_GLOBAL_TIMER_FREQUENCY,
-            (cpu->local_apic->timer_ticks / ARCH_GLOBAL_TIMER_FREQUENCY) == 1 ? "" : "s",
-            cpu->local_apic->apic_id);
-    }
-
     if(user_transition) {
         arch_swapgs();
     }
