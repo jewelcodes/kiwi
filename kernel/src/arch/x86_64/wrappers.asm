@@ -193,9 +193,9 @@ arch_read_msr:
     or rax, rdx
     ret
 
-global arch_get_kernel_cpu_info
+global arch_get_current_cpu_info
 align 16
-arch_get_kernel_cpu_info:
+arch_get_current_cpu_info:
     mov rax, [gs:0]
     ret
 

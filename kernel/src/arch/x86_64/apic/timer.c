@@ -84,7 +84,7 @@ void lapic_timer_irq(IRQStackFrame *state) {
         arch_swapgs();
     }
 
-    CPUInfo *cpu = arch_get_kernel_cpu_info();
+    CPUInfo *cpu = arch_get_current_cpu_info();
     cpu->local_apic->timer_ticks++;
 
     if(user_transition) {

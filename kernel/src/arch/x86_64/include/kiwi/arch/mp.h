@@ -31,6 +31,9 @@ typedef struct CPUInfo {
     void *cpu_info;
     void *stack;
     LocalAPIC *local_apic;
+    int index;
 } CPUInfo;
 
-CPUInfo *arch_get_kernel_cpu_info(void);
+int arch_get_cpu_count(void);
+CPUInfo *arch_get_cpu_info(int index);
+CPUInfo *arch_get_current_cpu_info(void);

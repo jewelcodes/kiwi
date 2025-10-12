@@ -49,6 +49,18 @@ extern u8 ap_early_main_end[];
 static int booted = 0;
 static Array *cpu_infos;
 
+int arch_get_cpu_count(void) {
+    return (int) cpu_infos->count;
+}
+
+CPUInfo *arch_get_cpu_info(int index) {
+    if((index < 0) || (index >= cpu_infos->count)) {
+        return NULL;
+    }
+
+    return (CPUInfo *) cpu_infos->items[index];
+}
+
 static void smp_cpu_info_init(LocalAPIC *lapic) {
     CPUIDRegisters cpuid;
     memset(&cpuid, 0, sizeof(CPUIDRegisters));
@@ -125,6 +137,7 @@ static void smp_cpu_info_init(LocalAPIC *lapic) {
     cpu_info->cpu_info = cpu_info;
     cpu_info->stack = (void *) ((uptr) user_stack + USER_STACK_SIZE);
     cpu_info->local_apic = lapic;
+    cpu_info->index = (int) cpu_infos->count;
 
     if(array_push(cpu_infos, (uptr) cpu_info)) {
         goto no_memory;
@@ -174,6 +187,10 @@ void ap_main(void) {
 
 void smp_init(void) {
     cpu_infos = array_create();
+    if(!cpu_infos) {
+        debug_error("failed to allocate CPU info array");
+        for(;;);
+    }
 
     CPUIDRegisters cpuid;
     memset(&cpuid, 0, sizeof(CPUIDRegisters));
