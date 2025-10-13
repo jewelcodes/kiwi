@@ -25,18 +25,9 @@
 #pragma once
 
 #include <kiwi/types.h>
-#include <kiwi/arch/apic.h>
-#include <kiwi/scheduler.h>
 
-typedef struct CPUInfo {
-    void *cpu_info;
-    void *stack;
-    LocalAPIC *local_apic;
-    int index;
-
-    SchedulerState scheduler_state;
-} CPUInfo;
-
-int arch_get_cpu_count(void);
-CPUInfo *arch_get_cpu_info(int index);
-CPUInfo *arch_get_current_cpu_info(void);
+typedef u32 pid_t;
+typedef u32 tid_t;
+typedef u32 uid_t;
+typedef u32 gid_t;
+typedef u64 off_t;
