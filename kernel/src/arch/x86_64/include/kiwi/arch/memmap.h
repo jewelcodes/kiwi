@@ -27,6 +27,7 @@
 #include <kiwi/types.h>
 
 #define PAGE_SIZE                   4096
+#define LARGE_PAGE_SIZE             0x200000
 #define PAGE_MASK                   ((PAGE_SIZE - 1) | 0xF000000000000000ULL)
 #define PAGE_ALIGN_UP(x)            (((x) + PAGE_MASK) & ~PAGE_MASK)
 #define PAGE_ALIGN_DOWN(x)          ((x) & ~PAGE_MASK)

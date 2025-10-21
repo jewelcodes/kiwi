@@ -290,3 +290,20 @@ void arch_set_uncacheable(uptr cr3, uptr virtual) {
     if(!(pt[pt_index] & PAGE_PRESENT)) return;
     pt[pt_index] |= PAGE_WRITE_THROUGH | PAGE_CACHE_DISABLE;
 }
+
+uptr arch_new_page_tables(void) {
+    uptr root = pmm_alloc_page();
+    if(!root) {
+        return 0;
+    }
+
+    uptr *kernel_root_ptr = (uptr *) ((uptr) kernel_paging_root + hhdm_base);
+    uptr *root_ptr = (uptr *) (root + hhdm_base);
+    memset(root_ptr, 0, PAGE_SIZE / 2);
+
+    for(int i = 0; i < 512; i++) {
+        root_ptr[i] = kernel_root_ptr[i];
+    }
+
+    return root;
+}

@@ -76,6 +76,14 @@
 #define CR0_CACHE_DISABLE       0x40000000
 #define CR4_FSGSBASE            0x00010000
 
+#define PAGE_PRESENT            0x001
+#define PAGE_WRITABLE           0x002
+#define PAGE_USER               0x004
+#define PAGE_WRITE_THROUGH      0x008
+#define PAGE_CACHE_DISABLE      0x010
+#define PAGE_SIZE_TOGGLE        0x080
+#define PAGE_NO_EXECUTE         (1ULL << 63)
+
 typedef struct GDTR {
     u16 limit;
     u64 base;
@@ -197,3 +205,4 @@ void arch_read_cpuid(u32 leaf, CPUIDRegisters *regs);
 void arch_write_msr(u32 msr, u64 value);
 u64 arch_read_msr(u32 msr);
 void arch_swapgs();
+uptr arch_new_page_tables(void);

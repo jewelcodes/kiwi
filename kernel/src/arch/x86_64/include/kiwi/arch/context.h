@@ -26,10 +26,31 @@
 
 #include <kiwi/types.h>
 
-uptr arch_paging_init(void);
-uptr arch_map_page(uptr page_tables, uptr virtual, uptr physical, u16 prot);
-uptr arch_map_large_page(uptr page_tables, uptr virtual, uptr physical, u16 prot);
-int arch_unmap_page(uptr page_tables, uptr virtual);
-int arch_get_page(uptr page_tables, uptr virtual, uptr *physical, u16 *prot);
-void arch_switch_page_tables(uptr page_tables);
-void arch_set_uncacheable(uptr cr3, uptr virtual);
+typedef struct MachineContext {
+    u64 r15;
+    u64 r14;
+    u64 r13;
+    u64 r12;
+    u64 r11;
+    u64 r10;
+    u64 r9;
+    u64 r8;
+    u64 rbp;
+    u64 rdi;
+    u64 rsi;
+    u64 rdx;
+    u64 rcx;
+    u64 rbx;
+    u64 rax;
+    u64 rip;
+    u64 cs;
+    u64 rflags;
+    u64 rsp;
+    u64 ss;
+} __attribute__((packed)) MachineContext;
+
+void *arch_create_context(int user, void (*start)(void *), void *arg,
+                          uptr *kernel_stack, uptr *user_stack,
+                          uptr *page_tables);
+void arch_destroy_context(void *context);
+void arch_switch_context(void *context);
