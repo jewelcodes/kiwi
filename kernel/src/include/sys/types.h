@@ -26,8 +26,8 @@
 
 #include <kiwi/types.h>
 
-typedef u32 pid_t;
-typedef u32 tid_t;
-typedef u32 uid_t;
-typedef u32 gid_t;
-typedef u64 off_t;
+typedef s32 id_t;
+typedef id_t pid_t;
+typedef id_t gid_t;
+typedef id_t uid_t;
+typedef s64 off_t;
