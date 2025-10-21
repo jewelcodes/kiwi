@@ -54,6 +54,10 @@ void array_destroy(Array *array) {
 }
 
 int array_push(Array *array, u64 item) {
+    if(!array) {
+        return -1;
+    }
+
     if(array->count == array->capacity) {
         u64 new_capacity = array->capacity * 2;
         u64 *new_items = (u64 *) realloc(array->items, sizeof(u64) * new_capacity);
@@ -68,7 +72,7 @@ int array_push(Array *array, u64 item) {
 }
 
 int array_pop_back(Array *array, u64 *item) {
-    if(array->count == 0) {
+    if((!array) || (!array->count)) {
         return -1;
     }
 
@@ -90,7 +94,7 @@ int array_pop_back(Array *array, u64 *item) {
 }
 
 int array_pop_front(Array *array, u64 *item) {
-    if(array->count == 0) {
+    if((!array) || (!array->count)) {
         return -1;
     }
 
