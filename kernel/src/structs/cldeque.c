@@ -60,6 +60,10 @@ void cldeque_destroy(CLDeque *deque) {
 }
 
 int cldeque_push(CLDeque *deque, u64 item) {
+    if(!deque) {
+        return -1;
+    }
+
     u64 size = (deque->tail > deque->head)
         ? deque->tail - deque->head
         : deque->capacity - (deque->head - deque->tail);
@@ -93,6 +97,10 @@ int cldeque_push(CLDeque *deque, u64 item) {
 }
 
 int cldeque_pop(CLDeque *deque, u64 *item) {
+    if(!deque) {
+        return -1;
+    }
+
     u64 size = (deque->tail > deque->head)
         ? deque->tail - deque->head
         : deque->capacity - (deque->head - deque->tail);
@@ -101,7 +109,10 @@ int cldeque_pop(CLDeque *deque, u64 *item) {
         return -1;
     }
 
-    *item = deque->items[deque->tail - 1];
+    if(item) {
+        *item = deque->items[deque->tail - 1];
+    }
+
     deque->tail--;
     if(deque->tail >= deque->capacity) {
         deque->tail = deque->tail % deque->capacity;
@@ -110,6 +121,10 @@ int cldeque_pop(CLDeque *deque, u64 *item) {
 }
 
 int cldeque_steal(CLDeque *deque, u64 *item) {
+    if(!deque) {
+        return -1;
+    }
+
     u64 size = (deque->tail > deque->head)
         ? deque->tail - deque->head
         : deque->capacity - (deque->head - deque->tail);
@@ -127,6 +142,9 @@ int cldeque_steal(CLDeque *deque, u64 *item) {
         return -1;
     }
 
-    *item = stolen_item;
+    if(item) {
+        *item = stolen_item;
+    }
+
     return 0;
 }

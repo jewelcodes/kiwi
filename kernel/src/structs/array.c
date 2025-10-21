@@ -83,7 +83,9 @@ int array_pop_back(Array *array, u64 *item) {
         }
     }
 
-    *item = popped_item;
+    if(item) {
+        *item = popped_item;
+    }
     return 0;
 }
 
@@ -108,6 +110,8 @@ int array_pop_front(Array *array, u64 *item) {
         }
     }
 
-    *item = popped_item;
+    if(item) {
+        *item = popped_item;
+    }
     return 0;
 }
