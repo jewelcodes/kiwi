@@ -37,6 +37,7 @@
 
 void arch_dt_setup(void);
 void arch_exceptions_setup(void);
+int main(int argc, char **argv);
 
 int arch_early_main(KiwiBootInfo *boot_info_ptr) {
     memcpy(&kiwi_boot_info, boot_info_ptr, sizeof(KiwiBootInfo));
@@ -84,10 +85,6 @@ int arch_early_main(KiwiBootInfo *boot_info_ptr) {
 
     char **argv;
     int argc = parse_boot_args(&argv);
-    debug_info("parsed %d kernel args", argc);
-    for(int i = 0; i < argc; i++) {
-        debug_info("  arg[%d]: %s", i, argv[i]);
-    }
 
-    for(;;);
+    return main(argc, argv);
 }

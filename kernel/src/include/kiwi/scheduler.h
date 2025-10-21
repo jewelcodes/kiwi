@@ -28,6 +28,8 @@
 #include <kiwi/structs/array.h>
 #include <kiwi/structs/cldeque.h>
 
+#define MAX_PROCESSES                   65536
+
 #define PRIORITY_MIN                    0
 #define PRIORITY_MAX                    5
 #define PRIORITY_COUNT                  (PRIORITY_MAX - PRIORITY_MIN + 1)
@@ -42,10 +44,12 @@ typedef struct Thread Thread;
 typedef struct Process Process;
 
 struct Thread {
-    tid_t tid;
+    pid_t tid;
     int status;
     Process *process;
-    void *machine_state;    /* arch-specific */
+    void *context;      /* arch-specific */
+    uptr kernel_stack;
+    uptr user_stack;
 };
 
 struct Process {
@@ -57,6 +61,7 @@ struct Process {
     gid_t egid;
     gid_t sgid;
     unsigned int priority;
+    uptr page_tables;
     Process *parent;
     Array *threads;
     Array *children;
@@ -72,10 +77,11 @@ typedef struct SchedulerState {
 void scheduler_init(void);
 void scheduler_start(void);
 void scheduler_stop(void);
+void scheduler_tick(void);
 void sched_yield(void);
 pid_t getpid(void);
-tid_t gettid(void);
+pid_t gettid(void);
 Process *get_current_process(void);
 Thread *get_current_thread(void);
 pid_t process_create(void);
-tid_t thread_create(Process *process, void *(*start_routine)(void *), void *arg);
+pid_t thread_create(Process *process, int user, void (*start)(void *), void *arg);

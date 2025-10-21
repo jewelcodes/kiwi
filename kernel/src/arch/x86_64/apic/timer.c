@@ -87,6 +87,8 @@ void lapic_timer_irq(IRQStackFrame *state) {
     CPUInfo *cpu = arch_get_current_cpu_info();
     cpu->local_apic->timer_ticks++;
 
+    scheduler_tick(); // this may or may not return to the same thread
+
     if(user_transition) {
         arch_swapgs();
     }
