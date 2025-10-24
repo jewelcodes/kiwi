@@ -64,7 +64,7 @@ int cldeque_push(CLDeque *deque, u64 item) {
         return -1;
     }
 
-    u64 size = (deque->tail > deque->head)
+    u64 size = (deque->tail >= deque->head)
         ? deque->tail - deque->head
         : deque->capacity - (deque->head - deque->tail);
 
@@ -101,7 +101,7 @@ int cldeque_pop(CLDeque *deque, u64 *item) {
         return -1;
     }
 
-    u64 size = (deque->tail > deque->head)
+    u64 size = (deque->tail >= deque->head)
         ? deque->tail - deque->head
         : deque->capacity - (deque->head - deque->tail);
 
@@ -125,7 +125,7 @@ int cldeque_steal(CLDeque *deque, u64 *item) {
         return -1;
     }
 
-    u64 size = (deque->tail > deque->head)
+    u64 size = (deque->tail >= deque->head)
         ? deque->tail - deque->head
         : deque->capacity - (deque->head - deque->tail);
     if(!size) {
