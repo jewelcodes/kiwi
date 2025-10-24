@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <kiwi/structs/array.h>
 #include <kiwi/structs/cldeque.h>
+#include <kiwi/arch/context.h>
 
 #define MAX_PROCESSES                   65536
 
@@ -47,7 +48,7 @@ struct Thread {
     pid_t tid;
     int status;
     Process *process;
-    void *context;      /* arch-specific */
+    MachineContext *context;
     uptr kernel_stack;
     uptr user_stack;
 };
@@ -77,7 +78,7 @@ typedef struct SchedulerState {
 void scheduler_init(void);
 void scheduler_start(void);
 void scheduler_stop(void);
-void scheduler_tick(void);
+void scheduler_tick(MachineContext *current_context);
 void sched_yield(void);
 pid_t getpid(void);
 pid_t gettid(void);

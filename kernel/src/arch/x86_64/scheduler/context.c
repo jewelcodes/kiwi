@@ -25,14 +25,15 @@
 #include <kiwi/arch/context.h>
 #include <kiwi/arch/x86_64.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* TODO: don't hard code these */
 #define KERNEL_STACK_SIZE           32768
 #define USER_STACK_SIZE             65536
 
-void *arch_create_context(int user, void (*start)(void *), void *arg,
-                          uptr *kernel_stack, uptr *user_stack,
-                          uptr *page_tables_ptr) {
+MachineContext *arch_create_context(int user, void (*start)(void *), void *arg,
+                                    uptr *kernel_stack, uptr *user_stack,
+                                    uptr *page_tables_ptr) {
     MachineContext *context = calloc(1, sizeof(MachineContext));
     if(!context) {
         return NULL;
@@ -75,4 +76,8 @@ fail_2:
     *user_stack = user_rsp + USER_STACK_SIZE;
     *page_tables_ptr = page_tables;
     return context;
+}
+
+MachineContext *arch_save_context(MachineContext *dst, const MachineContext *src) {
+    return memcpy(dst, src, sizeof(MachineContext));
 }

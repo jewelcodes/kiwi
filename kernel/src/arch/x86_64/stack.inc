@@ -24,6 +24,8 @@
 
 [bits 64]
 
+%define PUSHAQ_SIZE         (8 * 15)
+
 %macro pushaq 0
     push rax
     push rbx

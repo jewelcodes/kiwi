@@ -68,13 +68,8 @@ static pid_t allocate_pid(void) {
     return -1;
 }
 
-static void test_proc(void *arg) {
-    debug_info("test_proc running");
-    for(;;);
-}
-
 void scheduler_init(void) {
-    bitmap = calloc(MAX_PROCESSES / 64, 64);
+    bitmap = calloc((MAX_PROCESSES + 7) / 8, 1);
     if(!bitmap) {
         debug_panic("failed to allocate memory for process bitmap");
     }
@@ -111,15 +106,6 @@ void scheduler_init(void) {
     }
 
     debug_info("created kernel process with PID %d", kernel_pid);
-
-    Process *proc;
-    if(hashmap_get(process_map, (u64) kernel_pid, (u64 *) &proc)) {
-        debug_panic("failed to get kernel process from process map");
-    }
-
-    pid_t tid = thread_create(proc, 0, test_proc, NULL);
-    debug_info("created kernel thread with TID %d", tid);
-
     scheduler_start();
 }
 
@@ -253,38 +239,72 @@ release_and_fail:
     return -1;
 }
 
-#include <kiwi/arch/ioport.h>
+Thread *find_next_thread(SchedulerState *state) {
+    if(!state) {
+        return NULL;
+    }
 
-void scheduler_tick(void) {
+    Thread *next_thread = NULL;
+    for(int i = PRIORITY_MAX; i >= PRIORITY_MIN; i--) {
+        if(!cldeque_steal(state->ready_queues[i], (u64 *) &next_thread)) {
+            if(next_thread) {
+                return next_thread;
+            }
+        }
+    }
+    return NULL;
+}
+
+void scheduler_tick(MachineContext *current_context) {
     if(!scheduler_enabled) {
         return;
     }
-    CPUInfo *cpu_info = arch_get_current_cpu_info();
-    if(!cpu_info) {
+    CPUInfo *current_cpu_info = arch_get_current_cpu_info();
+    if(!current_cpu_info) {
         return;
     }
-    SchedulerState *state = &cpu_info->scheduler_state;
+
+    SchedulerState *state = &current_cpu_info->scheduler_state;
     Thread *current_thread = state->current_thread;
-    Thread *next_thread = NULL;
-    //debug_info("state = 0x%llx", (u64) state);
-    if(cldeque_pop(state->ready_queues[PRIORITY_DEFAULT], (u64 *) &next_thread)) {
-        return;
-    }
+    Thread *next_thread = find_next_thread(state);
 
     if(!next_thread) {
-        return;
+        if(arch_get_cpu_count() == 1) {
+            return;
+        }
+
+        CPUInfo *other_cpu_info;
+        for(int i = 0; i < arch_get_cpu_count(); i++) {
+            if(i == current_cpu_info->index) {
+                continue;
+            }
+
+            other_cpu_info = arch_get_cpu_info(i);
+            if(!other_cpu_info) {
+                continue;
+            }
+
+            next_thread = find_next_thread(&other_cpu_info->scheduler_state);
+            if(next_thread) {
+                break;
+            }
+        }
+
+        if(!next_thread) {
+            return;
+        }
     }
 
-    cpu_info->scheduler_state.current_thread = next_thread;
-    cpu_info->scheduler_state.current_process = next_thread->process;
+    current_cpu_info->scheduler_state.current_thread = next_thread;
+    current_cpu_info->scheduler_state.current_process = next_thread->process;
     next_thread->status = THREAD_STATUS_RUNNING;
     if(current_thread) {
         current_thread->status = THREAD_STATUS_READY;
+        arch_save_context(current_thread->context, current_context);
+        if(cldeque_push(state->ready_queues[PRIORITY_DEFAULT], (u64) current_thread)) {
+            return;
+        }
     }
 
-    // TODO
-    //arch_switch_context(&current_thread->context, next_thread->context);
-    debug_info("todo: perform context switch here");
-    debug_info("new pml4 = 0x%llx", next_thread->process->page_tables);
-    for(;;);
+    arch_switch_context(next_thread->context, next_thread->process->page_tables);
 }

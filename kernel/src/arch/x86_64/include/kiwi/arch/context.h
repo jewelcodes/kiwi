@@ -49,8 +49,9 @@ typedef struct MachineContext {
     u64 ss;
 } __attribute__((packed)) MachineContext;
 
-void *arch_create_context(int user, void (*start)(void *), void *arg,
-                          uptr *kernel_stack, uptr *user_stack,
-                          uptr *page_tables);
-void arch_destroy_context(void *context);
-void arch_switch_context(void *context);
+MachineContext *arch_create_context(int user, void (*start)(void *), void *arg,
+                                    uptr *kernel_stack, uptr *user_stack,
+                                    uptr *page_tables);
+void arch_destroy_context(MachineContext *context);
+MachineContext *arch_save_context(MachineContext *dst, const MachineContext *src);
+void arch_switch_context(MachineContext *context, uptr page_tables);
