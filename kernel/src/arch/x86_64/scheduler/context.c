@@ -53,10 +53,14 @@ fail_2:
         goto fail_1;
     }
 
-    uptr page_tables = arch_new_page_tables();
-    if(!page_tables) {
-        free((void *) user_rsp);
-        goto fail_2;
+    if(page_tables_ptr) {
+        uptr page_tables = arch_new_page_tables();
+        if(!page_tables) {
+            free((void *) user_rsp);
+            goto fail_2;
+        }
+
+        *page_tables_ptr = page_tables;
     }
 
     if(user) {
@@ -74,7 +78,6 @@ fail_2:
     context->rflags = 0x202;  // interrupts, parity
     *kernel_stack = kernel_rsp + KERNEL_STACK_SIZE;
     *user_stack = user_rsp + USER_STACK_SIZE;
-    *page_tables_ptr = page_tables;
     return context;
 }
 

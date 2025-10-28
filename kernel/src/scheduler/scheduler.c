@@ -208,16 +208,21 @@ pid_t thread_create(Process *process, int user, void (*start)(void *), void *arg
     new_thread->tid = tid;
     new_thread->status = THREAD_STATUS_READY;
     new_thread->process = process;
+
+    int new_context = process->page_tables == 0;
     new_thread->context = arch_create_context(user, start, arg,
                                               &new_thread->kernel_stack,
                                               &new_thread->user_stack,
-                                              &process->page_tables);
+                                              new_context ? &process->page_tables : NULL);
+
     if(!new_thread->context) {
         free(new_thread);
         goto release_and_fail;
     }
 
-    vmm_create_vaspace(&new_thread->process->vas, process->page_tables);
+    if(new_context) {
+        vmm_create_vaspace(&new_thread->process->vas, process->page_tables);
+    }
 
     if(array_push(process->threads, (u64) new_thread)) {
         free(new_thread);
