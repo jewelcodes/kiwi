@@ -109,7 +109,10 @@ static void vmm_debug_node(VMMTreeNode *node, int recursive) {
 }
 
 VMMTreeNode *vmm_search(VMMTreeNode *root, u64 virtual) {
-    if(!root) return NULL;
+    if(!root) {
+        return NULL;
+    }
+
     if((virtual < root->base) || (virtual >= root->max_virtual_address)) {
         return NULL;
     }
@@ -131,7 +134,9 @@ VMMTreeNode *vmm_search(VMMTreeNode *root, u64 virtual) {
 }
 
 VMMTreeNode *vmm_lenient_search(VMMTreeNode *root, u64 virtual) {
-    if(!root) return NULL;
+    if(!root) {
+        return NULL;
+    }
 
     if((virtual < root->base) || (virtual >= root->max_virtual_address)) {
         return NULL;
@@ -308,7 +313,7 @@ void *vmm_allocate(VASpace *vas, u64 base, u64 limit, usize page_count, u16 prot
         vas = &kvmm;
     }
 
-    if(!vas->root || !page_count || base >= limit) {
+    if(!page_count || base >= limit) {
         return NULL;
     }
 
@@ -525,4 +530,15 @@ allocate:
 
     arch_spinlock_release(&vas->lock);
     return (void *) res->base;
+}
+
+VASpace *vmm_create_vaspace(VASpace *dest, uptr page_tables) {
+    if(!dest) {
+        return NULL;
+    }
+
+    memset(dest, 0, sizeof(VASpace));
+    dest->lock = LOCK_INITIAL;
+    dest->arch_page_tables = page_tables;
+    return dest;
 }

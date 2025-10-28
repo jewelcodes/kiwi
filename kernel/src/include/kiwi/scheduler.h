@@ -28,6 +28,7 @@
 #include <kiwi/structs/array.h>
 #include <kiwi/structs/cldeque.h>
 #include <kiwi/arch/context.h>
+#include <kiwi/vmm.h>
 
 #define MAX_PROCESSES                   65536
 
@@ -63,6 +64,7 @@ struct Process {
     gid_t sgid;
     unsigned int priority;
     uptr page_tables;
+    VASpace vas;
     Process *parent;
     Array *threads;
     Array *children;

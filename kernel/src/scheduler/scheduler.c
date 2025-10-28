@@ -217,6 +217,8 @@ pid_t thread_create(Process *process, int user, void (*start)(void *), void *arg
         goto release_and_fail;
     }
 
+    vmm_create_vaspace(&new_thread->process->vas, process->page_tables);
+
     if(array_push(process->threads, (u64) new_thread)) {
         free(new_thread);
         goto release_and_fail;

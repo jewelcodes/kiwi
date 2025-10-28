@@ -81,3 +81,4 @@ int vmm_page_fault(VASpace *vas, u64 virtual, int user, int write, int exec);
 int vmm_delete_node(VASpace *vas, VMMTreeNode *node);
 void *vmm_allocate(VASpace *vas, u64 base, u64 limit, usize page_count, u16 prot);
 void *vmm_create_mmio(VASpace *vas, u64 physical, usize size, u16 prot);
+VASpace *vmm_create_vaspace(VASpace *dest, uptr page_tables);
