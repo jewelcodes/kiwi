@@ -31,7 +31,6 @@
 #define PAGE_MASK                   ((PAGE_SIZE - 1) | 0xF000000000000000ULL)
 #define PAGE_ALIGN_UP(x)            (((x) + PAGE_MASK) & ~PAGE_MASK)
 #define PAGE_ALIGN_DOWN(x)          ((x) & ~PAGE_MASK)
-#define PAGE_ALIGNED(x)             (((x) & PAGE_MASK) == 0)
 
 #define ARCH_MAX_USER_ADDRESS       0x00007FFFFFFFFFFFULL
 #define ARCH_MMIO_BASE              0xFFFFA00000000000ULL
@@ -39,3 +38,7 @@
 #define ARCH_VMM_BASE               0xFFFF800000000000ULL
 #define ARCH_KERNEL_HEAP_BASE       0xFFFF900000000000ULL
 #define ARCH_KERNEL_IMAGE_BASE      0xFFFFFFFF80100000ULL
+
+#define IS_PAGE_ALIGNED(x)          (((x) & PAGE_MASK) == 0)
+#define IS_KERNEL_ADDRESS(x)        ((x) > ARCH_MAX_USER_ADDRESS)
+#define IS_USER_ADDRESS(x)          (!IS_KERNEL_ADDRESS(x))
