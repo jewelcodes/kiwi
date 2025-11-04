@@ -71,7 +71,7 @@ struct Process {
     Process *parent;
     Array *threads;
     Array *children;
-    FileDescriptor fds[OPEN_MAX];
+    FileDescriptor *fds;
 };
 
 typedef struct SchedulerState {

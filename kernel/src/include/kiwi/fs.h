@@ -25,6 +25,9 @@
 #pragma once
 
 #include <sys/types.h>
+
+typedef struct FileDescriptor FileDescriptor;
+
 #include <kiwi/scheduler.h>
 
 #define FD_TYPE_NONE            0
@@ -46,11 +49,11 @@
 #define O_DSYNC                 0x0800
 #define O_CLOFORK               0x1000
 
-typedef struct FileDescriptor {
+struct FileDescriptor {
     void *node;
     int type;
     u16 flags;
-} FileDescriptor;
+};
 
 typedef struct FileNodeHeader {
     u32 ref_count;
