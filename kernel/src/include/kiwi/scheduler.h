@@ -24,11 +24,17 @@
 
 #pragma once
 
+#include <limits.h>
 #include <sys/types.h>
 #include <kiwi/structs/array.h>
 #include <kiwi/structs/cldeque.h>
 #include <kiwi/arch/context.h>
 #include <kiwi/vmm.h>
+
+typedef struct Thread Thread;
+typedef struct Process Process;
+
+#include <kiwi/fs.h>
 
 #define MAX_PROCESSES                   65536
 
@@ -41,9 +47,6 @@
 #define THREAD_STATUS_RUNNING           2
 #define THREAD_STATUS_BLOCKED           3
 #define THREAD_STATUS_TERMINATED        4
-
-typedef struct Thread Thread;
-typedef struct Process Process;
 
 struct Thread {
     pid_t tid;
@@ -68,6 +71,7 @@ struct Process {
     Process *parent;
     Array *threads;
     Array *children;
+    FileDescriptor fds[OPEN_MAX];
 };
 
 typedef struct SchedulerState {
