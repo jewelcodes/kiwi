@@ -92,3 +92,4 @@ Process *get_current_process(void);
 Thread *get_current_thread(void);
 pid_t process_create(void);
 pid_t thread_create(Process *process, int user, void (*start)(void *), void *arg);
+pid_t create_kernel_process(void (*start)(void *), void *arg);

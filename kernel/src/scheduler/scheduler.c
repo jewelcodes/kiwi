@@ -99,13 +99,6 @@ void scheduler_init(void) {
     }
 
     debug_info("scheduler ready");
-
-    kernel_pid = process_create();
-    if(kernel_pid < 0) {
-        debug_panic("failed to create kernel process");
-    }
-
-    debug_info("created kernel process with PID %d", kernel_pid);
     scheduler_start();
 }
 
@@ -314,4 +307,24 @@ void scheduler_tick(MachineContext *current_context) {
     }
 
     arch_switch_context(next_thread->context, next_thread->process->page_tables);
+}
+
+pid_t create_kernel_process(void (*start)(void *), void *arg) {
+    kernel_pid = process_create();
+    if(kernel_pid < 0) {
+        debug_panic("failed to create kernel process");
+    }
+
+    Process *process = NULL;
+    hashmap_get(process_map, (u64) kernel_pid, (u64 *) &process);
+    if(!process) {
+        debug_panic("failed to retrieve newly created kernel process");
+    }
+
+    pid_t tid = thread_create(process, 0, start, arg);
+    if(tid != kernel_pid) {
+        debug_panic("failed to create kernel thread");
+    }
+
+    return kernel_pid;
 }

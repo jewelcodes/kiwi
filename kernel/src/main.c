@@ -25,8 +25,29 @@
 #include <kiwi/scheduler.h>
 #include <kiwi/debug.h>
 
+struct KernelArgs {
+    int argc;
+    char **argv;
+};
+
+void kernel_process_main(void *arg);
+
 int main(int argc, char **argv) {
     scheduler_init();
+
+    struct KernelArgs kargs = {
+        .argc = argc,
+        .argv = argv
+    };
+
+    create_kernel_process(kernel_process_main, &kargs);
+
+    for(;;);
+}
+
+void kernel_process_main(void *arg) {
+    struct KernelArgs *kargs = (struct KernelArgs *) arg;
+    debug_info("kernel thread started with pid %d", getpid());
 
     for(;;);
 }
