@@ -28,3 +28,4 @@
 
 #define OPEN_MAX            1024
 #define PAGESIZE            (PAGE_SIZE)
+#define PATH_MAX            4096

@@ -25,6 +25,7 @@
 #pragma once
 
 #include <sys/types.h>
+#include <limits.h>
 
 typedef struct FileDescriptor FileDescriptor;
 
@@ -64,7 +65,29 @@ typedef struct FileNode {
     FileNodeHeader header;
     u64 mountpoint_id;
     off_t position;
+    void *fs_specific;
 } FileNode;
+
+typedef struct Filesystem {
+    char name[32];
+    int (*mount)(const char *dev, const char *mp, int flags);
+    int (*umount)(const char *mp);
+    int (*open)(const char *path, int flags, ...);
+    int (*close)(int fd);
+    ssize_t (*read)(int fd, void *buf, size_t count);
+    ssize_t (*write)(int fd, const void *buf, size_t count);
+} Filesystem;
+
+typedef struct Mountpoint {
+    char *path;
+    char *device;
+    Filesystem *fs;
+    int flags;
+} Mountpoint;
+
+typedef struct VFS {
+    Array *filesystems;
+} VFS;
 
 void vfs_init(void);
 FileDescriptor *create_fd(int type, u16 flags);

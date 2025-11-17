@@ -31,3 +31,4 @@ typedef id_t pid_t;
 typedef id_t gid_t;
 typedef id_t uid_t;
 typedef s64 off_t;
+typedef s64 ssize_t;
