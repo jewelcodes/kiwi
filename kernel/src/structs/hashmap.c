@@ -282,7 +282,7 @@ int hashmap_put_string(Hashmap *map, const char *key, u64 value) {
         return -1;
     }
 
-    u64 hash = xxhash64_string(key);
+    u64 hash = xxhash64_string(key) + strlen(key);
     return hashmap_put(map, hash, value);
 }
 
@@ -291,6 +291,6 @@ int hashmap_get_string(Hashmap *map, const char *key, u64 *value) {
         return -1;
     }
 
-    u64 hash = xxhash64_string(key);
+    u64 hash = xxhash64_string(key) + strlen(key);
     return hashmap_get(map, hash, value);
 }
