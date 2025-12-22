@@ -64,7 +64,7 @@ static VMMTreeNode *vmm_allocate_node(VASpace *vas) {
         u64 *usage_bitmap = (u64 *) ((uptr) ARCH_VMM_BASE + i * PAGE_SIZE);
         int free_bit = find_free_bit(*usage_bitmap);
         if(free_bit >= 0) {
-            *usage_bitmap |= (1 << free_bit);
+            *usage_bitmap |= (1ULL << free_bit);
             VMMTreeNode *node = (VMMTreeNode *) ((uptr) ARCH_VMM_BASE +
                 (i * PAGE_SIZE) + sizeof(u64) + (free_bit * sizeof(VMMTreeNode)));
             memset(node, 0, sizeof(VMMTreeNode));
