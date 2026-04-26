@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -178,7 +178,8 @@ void ap_main(void) {
 
     lapic_init(0);
     smp_cpu_info_init(lapic);
-    lapic_timer_init();
+
+    debug_info("CPU %u is awake", lapic->apic_id);
 
     booted = 1;
     arch_flush_cache();
@@ -204,7 +205,6 @@ void smp_init(void) {
     }
 
     smp_cpu_info_init(bsp);
-    lapic_timer_init();
 
     if(lapics->count < 2) {
         return;

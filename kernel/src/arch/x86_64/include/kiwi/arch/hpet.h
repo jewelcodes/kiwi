@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -51,8 +51,9 @@
 #define HPET_TIMER_CONFIG_CAP_PERIODIC_VAL_SET  0x40
 
 int hpet_init(void);
-u64 hpet_frequency(void);
-void hpet_block(u64 ns);
+u64 hpet_frequency(u32 unused);
+u64 hpet_read_counter(u32 unused);
+void hpet_busy_wait(u32 unused, u64 ns);
 
 typedef struct HPETTable {
     ACPIHeader header;

@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,34 +22,10 @@
  * SOFTWARE.
  */
 
-#include <kiwi/arch/timer.h>
-#include <kiwi/arch/hpet.h>
 #include <kiwi/debug.h>
-
-static int using_hpet = 0;
+#include <kiwi/timer.h>
+#include <kiwi/arch/hpet.h>
 
 void arch_timer_init(void) {
-    using_hpet = !hpet_init();
-    if(using_hpet) {
-        return;
-    }
-
-    // TODO: PIT fallback
-    debug_error("TODO: HPET not present and PIT fallback not implemented");
-    for(;;);
-}
-
-u64 arch_timer_frequency(void) {
-    if(using_hpet) {
-        return hpet_frequency();
-    }
-
-    return 0;
-}
-
-void arch_timer_block(u64 ns) {
-    if(using_hpet) {
-        hpet_block(ns);
-        return;
-    }
+    hpet_init();
 }

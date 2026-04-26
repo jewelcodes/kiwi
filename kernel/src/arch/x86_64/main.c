@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,8 +29,8 @@
 #include <kiwi/pmm.h>
 #include <kiwi/vmm.h>
 #include <kiwi/acpi.h>
+#include <kiwi/timer.h>
 #include <kiwi/arch/apic.h>
-#include <kiwi/arch/timer.h>
 #include <kiwi/arch/smp.h>
 #include <string.h>
 #include <stdlib.h>
@@ -80,7 +80,7 @@ int arch_early_main(KiwiBootInfo *boot_info_ptr) {
 
     acpi_tables_init();
     apic_init();
-    arch_timer_init();
+    timer_init();
     smp_init();
 
     char **argv;

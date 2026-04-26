@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,10 +24,4 @@
 
 #pragma once
 
-#include <kiwi/types.h>
-
-#define ARCH_GLOBAL_TIMER_FREQUENCY             1000
-
 void arch_timer_init(void);
-u64 arch_timer_frequency(void);
-void arch_timer_block(u64 ns);
