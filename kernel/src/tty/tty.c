@@ -161,6 +161,9 @@ void tty_putchar(char c) {
 
     arch_spinlock_acquire(&kernel_terminal.lock);
 
+    if(debug_level <= DEBUG_LEVEL_INFO)
+        serial_tty_putchar(c);
+
     if(c == '\r') {
         kernel_terminal.x = 0;
         goto out;
