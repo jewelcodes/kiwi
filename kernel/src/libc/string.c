@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -127,4 +127,41 @@ char *strdup(const char *s) {
     }
     strcpy(dup, s);
     return dup;
+}
+
+static char *strtoklast = NULL;
+
+static inline int string_contains(const char *str, char c) {
+    while(*str) {
+        if(*str == c) return 1;
+        str++;
+    }
+    return 0;
+}
+
+char *strtok_r(char *str, const char *delim, char **save) {
+    if(!str) str = *save;
+    char *start = NULL;
+
+    for(int i = 0; i < strlen(str); i++) {
+        if(!string_contains(delim, str[i])) {
+            start = &str[i];
+            i++;
+            if(!str[i]) return NULL;
+
+            while(str[i] && !string_contains(delim, str[i]))
+                i++;
+
+            str[i] = 0;
+            *save = &str[i+1];
+
+            return start;
+        }
+    }
+
+    return NULL;
+}
+
+char *strtok(char *str, const char *delim) {
+    return strtok_r(str, delim, &strtoklast);
 }

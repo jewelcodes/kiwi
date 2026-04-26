@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,3 +34,5 @@ void *memset(void *s, int c, size_t n);
 int strcmp(const char *s1, const char *s2);
 int memcmp(const void *s1, const void *s2, size_t n);
 char *strdup(const char *s);
+char *strtok_r(char *str, const char *delim, char **saveptr);
+char *strtok(char *str, const char *delim);
