@@ -135,3 +135,33 @@ u64 uptime_ns(void) {
         return 0;
     return (ticks * 1000000000ULL) / frequency;
 }
+
+/* these two functions are wrappers around busy_wait() -- they are not aware of
+ * the scheduler or the workers and will literally poll the timers. they should
+ * not be used except during very early boot.
+ */
+
+void timer_block_until(u64 ts) {
+    TimerDevice *dev = default_dev ? default_dev : default_global_dev;
+    int timer_index = default_timer >= 0
+        ? default_timer : default_global_timer;
+    if(!dev || timer_index < 0)
+        return;
+
+    dev->busy_wait(timer_index, ts);
+}
+
+void timer_block_for(u64 ns) {
+    TimerDevice *dev = default_dev ? default_dev : default_global_dev;
+    int timer_index = default_timer >= 0
+        ? default_timer : default_global_timer;
+    u64 frequency, ticks;
+
+    if(!dev || timer_index < 0)
+        return;
+    frequency = dev->frequency(timer_index);
+    if(!frequency)
+        return;
+    ticks = (ns * frequency) / 1000000000ULL;
+    dev->busy_wait(timer_index, dev->read(timer_index) + ticks);
+}

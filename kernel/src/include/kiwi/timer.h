@@ -96,5 +96,8 @@ void timer_init(void);
 int timer_register(TimerDevice *device);
 int timer_set_default(int device_index, int timer_index);
 int timer_set_default_global(int device_index, int timer_index);
+
 u64 uptime(void);
 u64 uptime_ns(void);
+void timer_block_until(u64 ts);
+void timer_block_for(u64 ns);
