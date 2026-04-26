@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -55,3 +55,4 @@ MachineContext *arch_create_context(int user, void (*start)(void *), void *arg,
 void arch_destroy_context(MachineContext *context);
 MachineContext *arch_save_context(MachineContext *dst, const MachineContext *src);
 void arch_switch_context(MachineContext *context, uptr page_tables);
+void arch_dump_context(int level, const MachineContext *context);

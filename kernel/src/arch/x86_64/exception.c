@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,7 @@
  */
 
 #include <kiwi/arch/x86_64.h>
+#include <kiwi/arch/context.h>
 #include <kiwi/debug.h>
 #include <kiwi/vmm.h>
 
@@ -133,6 +134,34 @@ void arch_exceptions_setup(void) {
     arch_install_isr(0x1F, (uptr) isr31_handler, GDT_KERNEL_CODE << 3, 0);
 }
 
+static void dump_exception(const ExceptionStackFrame *frame) {
+    MachineContext ctx = {
+        .r15 = frame->r15,
+        .r14 = frame->r14,
+        .r13 = frame->r13,
+        .r12 = frame->r12,
+        .r11 = frame->r11,
+        .r10 = frame->r10,
+        .r9  = frame->r9,
+        .r8  = frame->r8,
+        .rbp = frame->rbp,
+        .rdi = frame->rdi,
+        .rsi = frame->rsi,
+        .rdx = frame->rdx,
+        .rcx = frame->rcx,
+        .rbx = frame->rbx,
+        .rax = frame->rax,
+        .rip = frame->rip,
+        .cs  = frame->cs,
+        .rflags = frame->rflags,
+        .rsp = frame->rsp,
+        .ss  = frame->ss
+    };
+
+    debug_error("dumping exception context:");
+    arch_dump_context(DEBUG_LEVEL_ERROR, &ctx);
+}
+
 void arch_exception_handler(u64 vector, u64 error_code,
                             ExceptionStackFrame *frame) {
     int user = (frame->cs & 0x03) != 0;
@@ -152,8 +181,9 @@ void arch_exception_handler(u64 vector, u64 error_code,
         }
     }
 
-    debug_panic("exception %u @ 0x%llX: %s (0x%llX)",
+    debug_error("exception %u @ 0x%llX: %s (0x%llX)",
         vector, frame->rip, message, error_code);
+    dump_exception(frame);
     for(;;);
 
 safe:

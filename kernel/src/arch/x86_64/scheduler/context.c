@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,7 @@
 
 #include <kiwi/arch/context.h>
 #include <kiwi/arch/x86_64.h>
+#include <kiwi/debug.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -83,4 +84,22 @@ fail_2:
 
 MachineContext *arch_save_context(MachineContext *dst, const MachineContext *src) {
     return memcpy(dst, src, sizeof(MachineContext));
+}
+
+void arch_dump_context(int level, const MachineContext *context) {
+    debug_print(level, NULL, "cs:rip = 0x%02llX:0x%016llX, ss:rsp = 0x%02llX:0x%016llX",
+        context->cs, context->rip, context->ss, context->rsp);
+    debug_print(level, NULL, "rflags: 0x%016llX", context->rflags);
+    debug_print(level, NULL, "rax: 0x%016llX rbx: 0x%016llX rcx: 0x%016llX", 
+        context->rax, context->rbx, context->rcx);
+    debug_print(level, NULL, "rdx: 0x%016llX rsi: 0x%016llX rdi: 0x%016llX",
+        context->rdx, context->rsi, context->rdi);
+    debug_print(level, NULL, "rbp: 0x%016llX r8:  0x%016llX r9:  0x%016llX",
+        context->rbp, context->r8, context->r9);
+    debug_print(level, NULL, "r10: 0x%016llX r11: 0x%016llX r12: 0x%016llX",
+        context->r10, context->r11, context->r12);
+    debug_print(level, NULL, "r13: 0x%016llX r14: 0x%016llX r15: 0x%016llX",
+        context->r13, context->r14, context->r15);
+    debug_print(level, NULL, "cr0: 0x%016llX cr2: 0x%016llX cr3: 0x%016llX",
+        arch_get_cr0(), arch_get_cr2(), arch_get_cr3());
 }
