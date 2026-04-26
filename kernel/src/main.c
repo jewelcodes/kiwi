@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +22,6 @@
  * SOFTWARE.
  */
 
-#include <kiwi/scheduler.h>
 #include <kiwi/debug.h>
 
 struct KernelArgs {
@@ -30,24 +29,7 @@ struct KernelArgs {
     char **argv;
 };
 
-void kernel_process_main(void *arg);
-
 int main(int argc, char **argv) {
-    scheduler_init();
-
-    struct KernelArgs kargs = {
-        .argc = argc,
-        .argv = argv
-    };
-
-    create_kernel_process(kernel_process_main, &kargs);
-
-    for(;;);
-}
-
-void kernel_process_main(void *arg) {
-    struct KernelArgs *kargs = (struct KernelArgs *) arg;
-    debug_info("kernel thread started with pid %d", getpid());
-
+    debug_info("hello world?");
     for(;;);
 }

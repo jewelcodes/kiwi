@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -88,30 +88,7 @@ void lapic_timer_irq(IRQStackFrame *state) {
     CPUInfo *cpu = arch_get_current_cpu_info();
     cpu->local_apic->timer_ticks++;
 
-    MachineContext current_context;
-    current_context.r15 = state->r15;
-    current_context.r14 = state->r14;
-    current_context.r13 = state->r13;
-    current_context.r12 = state->r12;
-    current_context.r11 = state->r11;
-    current_context.r10 = state->r10;
-    current_context.r9  = state->r9;
-    current_context.r8  = state->r8;
-    current_context.rbp = state->rbp;
-    current_context.rdi = state->rdi;
-    current_context.rsi = state->rsi;
-    current_context.rdx = state->rdx;
-    current_context.rcx = state->rcx;
-    current_context.rbx = state->rbx;
-    current_context.rax = state->rax;
-    current_context.rip = state->rip;
-    current_context.cs  = state->cs;
-    current_context.rflags = state->rflags;
-    current_context.rsp = user_transition ? state->rsp : state->rsp;
-    current_context.ss  = user_transition ? state->ss : GDT_KERNEL_DATA << 3;
-
     arch_ack_irq(NULL);
-    scheduler_tick(&current_context);   // this may or may not return to the same thread
 
     if(user_transition) {
         arch_swapgs();

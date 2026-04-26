@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,11 +25,11 @@
 #pragma once
 
 #include <sys/types.h>
+#include <kiwi/types.h>
+#include <kiwi/structs/array.h>
 #include <limits.h>
 
 typedef struct FileDescriptor FileDescriptor;
-
-#include <kiwi/scheduler.h>
 
 #define FD_TYPE_NONE            0
 #define FD_TYPE_FILE            1
@@ -58,7 +58,6 @@ struct FileDescriptor {
 
 typedef struct FileNodeHeader {
     u32 ref_count;
-    Process *original_owner;
 } FileNodeHeader;
 
 typedef struct FileNode {

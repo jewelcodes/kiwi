@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,15 +26,12 @@
 
 #include <kiwi/types.h>
 #include <kiwi/arch/apic.h>
-#include <kiwi/scheduler.h>
 
 typedef struct CPUInfo {
     void *cpu_info;
     void *stack;
     LocalAPIC *local_apic;
     int index;
-
-    SchedulerState scheduler_state;
 } CPUInfo;
 
 int arch_get_cpu_count(void);
