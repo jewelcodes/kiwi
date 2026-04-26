@@ -47,7 +47,7 @@ extern u8 ap_early_main[];
 extern u8 ap_early_main_end[];
 
 static int booted = 0;
-static Array *cpu_infos;
+Array *cpu_infos;
 
 int arch_get_cpu_count(void) {
     return (int) cpu_infos->count;
@@ -61,7 +61,7 @@ CPUInfo *arch_get_cpu_info(int index) {
     return (CPUInfo *) cpu_infos->items[index];
 }
 
-static void smp_cpu_info_init(LocalAPIC *lapic) {
+void smp_cpu_info_init(LocalAPIC *lapic) {
     CPUIDRegisters cpuid;
     memset(&cpuid, 0, sizeof(CPUIDRegisters));
     arch_read_cpuid(7, &cpuid);
@@ -187,29 +187,8 @@ void ap_main(void) {
 }
 
 void smp_init(void) {
-    cpu_infos = array_create();
-    if(!cpu_infos) {
-        debug_error("failed to allocate CPU info array");
-        for(;;);
-    }
-
-    CPUIDRegisters cpuid;
-    memset(&cpuid, 0, sizeof(CPUIDRegisters));
-    arch_read_cpuid(1, &cpuid);
-    u8 bsp_id = (cpuid.ebx >> 24) & 0xFF;
-
-    LocalAPIC *bsp = lapic_get_by_apic_id(bsp_id);
-    if(!bsp) {
-        debug_error("failed to find BSP in LAPIC list");
-        for(;;);
-    }
-
-    smp_cpu_info_init(bsp);
-
-    if(lapics->count < 2) {
+    if(lapics->count < 2)
         return;
-    }
-
     debug_info("attempt to start %u secondary cores...", lapics->count - 1);
 
     // temporarily map low memory so the AP can access it

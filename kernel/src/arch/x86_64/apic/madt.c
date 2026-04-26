@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,7 @@
  */
 
 #include <kiwi/arch/apic.h>
+#include <kiwi/arch/mp.h>
 #include <kiwi/arch/ioport.h>
 #include <kiwi/arch/x86_64.h>
 #include <kiwi/debug.h>
@@ -32,6 +33,11 @@
 static ACPIMADT *madt;
 
 void apic_init(void) {
+    LocalAPIC *bsp;
+    cpu_infos = array_create();
+    if(!cpu_infos)
+        debug_panic("failed to allocate CPU info array");
+
     madt = acpi_find_table("APIC", 0);
     if(!madt) {
         debug_error("ACPI MADT table not present");
@@ -50,7 +56,6 @@ void apic_init(void) {
     CPUIDRegisters cpuid;
     memset(&cpuid, 0, sizeof(CPUIDRegisters));
     arch_read_cpuid(1, &cpuid);
-
     u8 bsp_id = (cpuid.ebx >> 24) & 0xFF;
 
     MADTEntryHeader *entry = (MADTEntryHeader *) madt->entries;
@@ -114,5 +119,12 @@ void apic_init(void) {
         entry = (MADTEntryHeader *) ((uptr) entry + entry->length);
     }
 
-    lapic_init(lapic);
+    lapic_init(lapic);  /* map the local APIC into memory */
+
+    /* set up CPU info for the boot CPU */
+    bsp = lapic_get_by_apic_id(bsp_id);
+    if(!bsp)
+        debug_panic("failed to find BSP in LAPIC list; firmware bug???");
+
+    smp_cpu_info_init(bsp);
 }
