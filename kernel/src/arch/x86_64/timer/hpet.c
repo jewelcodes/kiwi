@@ -41,7 +41,8 @@ static TimerDevice hpet_timer = {
     .cancel_alarm = NULL,
     .count = 0,
     .enabled = 1,
-    .global = 1
+    .global = 1,
+    .direction = 1
 };
 
 static void hpet_write(u64 offset, u64 value) {

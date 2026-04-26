@@ -76,6 +76,11 @@ typedef struct TimerDevice {
      * stated earlier. The kernel will prefer to use a non-global default timer
      * if possible as the timer I/O overhead will likely be lower, but global
      * timers are still useful as a fallback.
+     * 
+     * Direction indicates whether the timer counts up or down (i.e., whether a
+     * second read() would return a higher or lower value than a previous
+     * read()). This is necessary when programming alarms but will be abstracted
+     * by higher-level APIs.
      */
 
     u64 (*frequency)(u32 index);
@@ -88,6 +93,7 @@ typedef struct TimerDevice {
     u32 count;
     int enabled;
     int global;
+    int direction;  /* -1 for down, 1 for up */
 } TimerDevice;
 
 extern Array *timer_devices;

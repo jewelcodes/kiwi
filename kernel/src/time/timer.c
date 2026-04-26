@@ -50,9 +50,11 @@ void timer_init(void) {
 
 int timer_register(TimerDevice *device) {
     int supports_alarms, status;
-    if(!device)
+    if(!device || !device->name || !device->count)
         return -1;
     if(!device->enabled || !device->frequency || !device->read || !device->busy_wait)
+        return -1;
+    if(device->direction != -1 && device->direction != 1)
         return -1;
 
     status = array_push(timer_devices, (u64) device);
@@ -60,8 +62,8 @@ int timer_register(TimerDevice *device) {
         return -1;
 
     supports_alarms = device->set_alarm && device->get_alarm && device->cancel_alarm;
-    debug_info("registered device '%s' with %d timers", device->name,
-        device->count);
+    debug_info("registered device '%s' with %d timer%s", device->name,
+        device->count, device->count != 1 ? "s" : "");
     if(!supports_alarms) {
         debug_warn("driver for '%s' doesn't support alarms; cannot use as default",
             device->name);
@@ -141,20 +143,10 @@ u64 uptime_ns(void) {
  * not be used except during very early boot.
  */
 
-void timer_block_until(u64 ts) {
-    TimerDevice *dev = default_dev ? default_dev : default_global_dev;
-    int timer_index = default_timer >= 0
-        ? default_timer : default_global_timer;
-    if(!dev || timer_index < 0)
-        return;
-
-    dev->busy_wait(timer_index, ts);
-}
-
 void timer_block_for(u64 ns) {
-    TimerDevice *dev = default_dev ? default_dev : default_global_dev;
-    int timer_index = default_timer >= 0
-        ? default_timer : default_global_timer;
+    TimerDevice *dev = default_global_dev ? default_global_dev : default_dev;
+    int timer_index = default_global_timer >= 0
+        ? default_global_timer : default_timer;
     u64 frequency, ticks;
 
     if(!dev || timer_index < 0)
@@ -163,5 +155,15 @@ void timer_block_for(u64 ns) {
     if(!frequency)
         return;
     ticks = (ns * frequency) / 1000000000ULL;
-    dev->busy_wait(timer_index, dev->read(timer_index) + ticks);
+    if(dev->direction == -1)
+        dev->busy_wait(timer_index, dev->read(timer_index) - ticks);
+    else
+        dev->busy_wait(timer_index, dev->read(timer_index) + ticks);
+}
+
+void timer_block_until(u64 ns) {
+    u64 now = uptime_ns();
+    if(ns <= now)
+        return;
+    timer_block_for(ns - now);
 }
