@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,9 +29,11 @@
 #define DEBUG_LEVEL_ERROR   3
 #define DEBUG_LEVEL_PANIC   4
 
-#define debug_info(fmt, ...)    debug_print(DEBUG_LEVEL_INFO, __FILE__, fmt, ##__VA_ARGS__)
-#define debug_warn(fmt, ...)    debug_print(DEBUG_LEVEL_WARN, __FILE__, fmt, ##__VA_ARGS__)
-#define debug_error(fmt, ...)   debug_print(DEBUG_LEVEL_ERROR, __FILE__, fmt, ##__VA_ARGS__)
-#define debug_panic(fmt, ...)   debug_print(DEBUG_LEVEL_PANIC, __FILE__, fmt, ##__VA_ARGS__)
+/* the +4 here is to skip "src/" */
+#define debug_info(fmt, ...)    debug_print(DEBUG_LEVEL_INFO, __FILE__ + 4, fmt, ##__VA_ARGS__)
+#define debug_warn(fmt, ...)    debug_print(DEBUG_LEVEL_WARN, __FILE__ + 4, fmt, ##__VA_ARGS__)
+#define debug_error(fmt, ...)   debug_print(DEBUG_LEVEL_ERROR, __FILE__ + 4, fmt, ##__VA_ARGS__)
+#define debug_panic(fmt, ...)   debug_print(DEBUG_LEVEL_PANIC, __FILE__ + 4, fmt, ##__VA_ARGS__)
 
+extern int debug_level;
 void debug_print(int level, const char *file, const char *fmt, ...);

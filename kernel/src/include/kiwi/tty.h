@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,25 +32,25 @@
 #define FONT_MIN_GLYPH              32
 #define FONT_MAX_GLYPH              126
 
-#define CONSOLE_WIDTH               94
-#define CONSOLE_HEIGHT              34
+#define CONSOLE_WIDTH               98
+#define CONSOLE_HEIGHT              37
 
 #define BLACK                       0
-#define BLUE                        1
+#define RED                         1
 #define GREEN                       2
-#define CYAN                        3
-#define RED                         4
+#define BROWN                       3
+#define BLUE                        4
 #define MAGENTA                     5
-#define BROWN                       6
+#define CYAN                        6
 #define LIGHT_GRAY                  7
 #define DARK_GRAY                   8
-#define LIGHT_BLUE                  9
+#define LIGHT_RED                   9
 #define LIGHT_GREEN                 10
-#define LIGHT_CYAN                  11
-#define LIGHT_RED                   12
+#define YELLOW                      11
+#define LIGHT_BLUE                  12
 #define LIGHT_MAGENTA               13
-#define YELLOW                      14
-#define WHITE                       15
+#define LIGHT_CYAN                  14
+#define LIGHT_WHITE                 15
 
 typedef struct KernelTerminal {
     lock_t lock;
@@ -60,6 +60,8 @@ typedef struct KernelTerminal {
     u16 x, y;
     u32 *front_buffer;
     u32 *back_buffer;
+    int escaping;
+    char escape_buffer[32];
 } KernelTerminal;
 
 extern KernelTerminal kernel_terminal;

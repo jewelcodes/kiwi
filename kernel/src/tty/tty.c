@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,9 +23,11 @@
  */
 
 #include <kiwi/tty.h>
+#include <kiwi/debug.h>
 #include <kiwi/arch/atomic.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdlib.h>
 
 KernelTerminal kernel_terminal = {
     .lock = LOCK_INITIAL,
@@ -43,20 +45,20 @@ KernelTerminal kernel_terminal = {
 
 const u32 palette[] = {
     0x101010,       // black
-    0x3B5BA7,       // blue
-    0x6CA45A,       // green
-    0x4AAE9E,       // cyan
     0xC74B4B,       // red
-    0xB65CA8,       // magenta
+    0x6CA45A,       // green
     0x8F673D,       // brown
+    0x3B5BA7,       // blue
+    0xB65CA8,       // magenta
+    0x4AAE9E,       // cyan
     0xCFCFCF,       // light gray
     0x5C5C5C,       // dark gray
-    0x547FD4,       // light blue
-    0x9BD97C,       // light green
-    0x6FD5C4,       // light cyan
     0xE36E6E,       // light red
+    0x9BD97C,       // light green
+    0xE9E46C,       // light yellow
+    0x547FD4,       // light blue
     0xD47CC9,       // light magenta
-    0xE9E46C,       // yellow
+    0x6FD5C4,       // light cyan
     0xF5F5F5        // white
 };
 
@@ -113,18 +115,55 @@ void tty_clear(void) {
     arch_spinlock_release(&kernel_terminal.lock);
 }
 
+static void tty_handle_sgr(void) {
+    kernel_terminal.escaping = 0;
+    char *token = strtok(kernel_terminal.escape_buffer + 1, ";");
+    while(token) {
+        int code = atoi(token);
+        if(code >= 30 && code <= 37) {
+            kernel_terminal.fg = palette[code - 30];
+        } else if(code >= 40 && code <= 47) {
+            kernel_terminal.bg = palette[code - 40];
+        } else if(code >= 90 && code <= 97) {
+            kernel_terminal.fg = palette[code - 90 + 8];
+        } else if(code >= 100 && code <= 107) {
+            kernel_terminal.bg = palette[code - 100 + 8];
+        } else if(code == 0) {
+            kernel_terminal.fg = palette[7]; // light gray
+            kernel_terminal.bg = palette[0]; // black
+        }
+        token = strtok(NULL, ";");
+    }
+}
+
+static void tty_handle_escape(char c) {
+    usize len = strlen(kernel_terminal.escape_buffer);
+    if(len >= sizeof(kernel_terminal.escape_buffer) - 1) {
+        kernel_terminal.escaping = 0;
+        return;
+    }
+
+    kernel_terminal.escape_buffer[len] = c;
+    kernel_terminal.escape_buffer[len + 1] = '\0';
+
+    if(c == 'm' && kernel_terminal.escape_buffer[0] == '[') {
+        tty_handle_sgr();
+    }
+}
+
 void tty_putchar(char c) {
+    u32 pitch = kernel_terminal.pitch;
+    u32 x, y;
+    const u8 *font_data;
+
     if(!kernel_terminal.front_buffer)
         return;
 
     arch_spinlock_acquire(&kernel_terminal.lock);
 
-    u32 pitch = kernel_terminal.pitch;
-
     if(c == '\r') {
         kernel_terminal.x = 0;
-        arch_spinlock_release(&kernel_terminal.lock);
-        return;
+        goto out;
     } else if(c == '\n') {
         kernel_terminal.x = 0;
         kernel_terminal.y++;
@@ -132,15 +171,24 @@ void tty_putchar(char c) {
     } else if(c == '\t') {
         kernel_terminal.x += 4 - (kernel_terminal.x % 4);
         goto check_boundaries;
+    } else if(c == '\e') {
+        kernel_terminal.escaping = 1;
+        kernel_terminal.escape_buffer[0] = '\0';
+        goto out;
+    }
+
+    if(kernel_terminal.escaping) {
+        tty_handle_escape(c);
+        goto out;
     }
 
     if(c < FONT_MIN_GLYPH || c > FONT_MAX_GLYPH) c = ' ';
-    const u8 *font_data = &font[(c - FONT_MIN_GLYPH) * FONT_HEIGHT];
+    font_data = &font[(c - FONT_MIN_GLYPH) * FONT_HEIGHT];
 
-    u32 y = (kernel_terminal.y * FONT_HEIGHT)
+    y = (kernel_terminal.y * FONT_HEIGHT)
         + ((kernel_terminal.height/2
         - (CONSOLE_HEIGHT*FONT_HEIGHT)/2));
-    u32 x = (kernel_terminal.x * FONT_WIDTH)
+    x = (kernel_terminal.x * FONT_WIDTH)
         + ((kernel_terminal.width/2
         - (CONSOLE_WIDTH*FONT_WIDTH)/2));
 
@@ -168,6 +216,7 @@ check_boundaries:
         tty_scroll();
     }
 
+out:
     arch_spinlock_release(&kernel_terminal.lock);
 }
 

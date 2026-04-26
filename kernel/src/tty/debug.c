@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,13 +33,36 @@ int debug_level = DEBUG_LEVEL_INFO;
 u64 ticks = 0; // TODO: when we actually have a timer this won't be here
 
 void debug_print(int level, const char *file, const char *fmt, ...) {
-    // TODO: change log colors based on level
+    va_list args;
+
+    if(level == DEBUG_LEVEL_PANIC)
+        debug_level = DEBUG_LEVEL_PANIC;
     if(level < debug_level)
         return;
-    
+
     arch_spinlock_acquire(&debug_lock);
-    printf("[%06llu.%03llu] %s: ", ticks / 1000, ticks % 1000, file + 4); // skip "src/"
-    va_list args;
+
+    printf("\e[35m[%5llu.%06llu] ", ticks / 1000, ticks % 1000);
+
+    if(file) {
+        switch(level) {
+        case DEBUG_LEVEL_ERROR:
+        case DEBUG_LEVEL_PANIC:
+            printf("\e[91m"); // bright red
+            break;
+        case DEBUG_LEVEL_WARN:
+            printf("\e[93m"); // bright yellow
+            break;
+        case DEBUG_LEVEL_INFO:
+        default:
+            printf("\e[32m"); // green
+        }
+
+        printf("%s: \e[0m", file);
+    } else {
+        printf("\e[0m "); // reset color
+    }
+
     va_start(args, fmt);
     vprintf(fmt, args);
     va_end(args);
