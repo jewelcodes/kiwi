@@ -23,14 +23,13 @@
  */
 
 #include <kiwi/debug.h>
+#include <kiwi/timer.h>
 #include <kiwi/arch/atomic.h>
 #include <stdio.h>
 
 static lock_t debug_lock = LOCK_INITIAL;
 
 int debug_level = DEBUG_LEVEL_INFO;
-
-u64 ticks = 0; // TODO: when we actually have a timer this won't be here
 
 void debug_print(int level, const char *file, const char *fmt, ...) {
     va_list args;
@@ -42,7 +41,8 @@ void debug_print(int level, const char *file, const char *fmt, ...) {
 
     arch_spinlock_acquire(&debug_lock);
 
-    printf("\e[35m[%5llu.%06llu] ", ticks / 1000, ticks % 1000);
+    u64 ticks = uptime_ns();
+    printf("\e[35m[%4llu.%06llu] ", ticks / SECOND, ticks % SECOND / MICROSECOND);
 
     if(file) {
         switch(level) {
