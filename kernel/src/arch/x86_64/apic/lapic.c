@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -72,7 +72,7 @@ no_memory:
 
 void lapic_init(uptr mmio_base) {
     if((!lapic) && mmio_base) {
-        lapic = vmm_create_mmio(NULL, mmio_base, 1, VMM_PROT_READ | VMM_PROT_WRITE);
+        lapic = vmm_create_mmio(&kvmm, mmio_base, 1, VMM_PROT_READ | VMM_PROT_WRITE);
     }
 
     if(!lapic) {

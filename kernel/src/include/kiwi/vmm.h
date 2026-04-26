@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,6 @@
 #include <kiwi/arch/atomic.h>
 #include <kiwi/arch/memmap.h>
 
-#define VMM_FANOUT                  8
 #define VMM_NODES_PER_PAGE          ((PAGE_SIZE / sizeof(VMMTreeNode)) - 1)
 
 #define VMM_PROT_READ               0x0001
@@ -36,32 +35,34 @@
 #define VMM_PROT_EXEC               0x0004
 #define VMM_PROT_USER               0x0008
 
+#define VMM_TYPE_INTERNAL           0x00
 #define VMM_TYPE_ANONYMOUS          0x01
 #define VMM_TYPE_FILE_BACKED        0x02
 #define VMM_TYPE_SHARED             0x03
 #define VMM_TYPE_DEVICE             0x04
+#define VMM_TYPE_ROOT               0xFF
 
 #define VMM_FLAGS_GUARD             0x01
 #define VMM_FLAGS_COW               0x02
 #define VMM_FLAGS_UNALLOCATED       0x04
 
+#define ROUND_TO_PAGES(x)           (((x) + PAGE_SIZE - 1) / PAGE_SIZE)
+
 typedef struct VMMTreeNode {
     u64 base;
-    u64 page_count;
+    u64 limit;
     u16 prot;
     u8 type;
     u8 flags;
-    u16 children_count;
+    u64 children_count;
+    u64 max_children_count;
     u16 reserved;
 
     uptr backing;
     uptr file_offset;
 
-    u64 max_virtual_address;    // largest virtual address in the subtree
-    u64 max_gap_page_count;     // largest gap (in pages) in the subtree
-
     struct VMMTreeNode *parent;
-    struct VMMTreeNode *children[VMM_FANOUT];
+    struct VMMTreeNode **children;
 } VMMTreeNode;
 
 typedef struct VASpace {
@@ -74,11 +75,8 @@ typedef struct VASpace {
 extern VASpace kvmm;
 
 void vmm_init(void);
-VMMTreeNode *vmm_search(VMMTreeNode *root, u64 virtual);
-VMMTreeNode *vmm_lenient_search(VMMTreeNode *root, u64 virtual);
-VMMTreeNode *vmm_create_node(VASpace *vas, const VMMTreeNode *new_node);
 int vmm_page_fault(VASpace *vas, u64 virtual, int user, int write, int exec);
-int vmm_delete_node(VASpace *vas, VMMTreeNode *node);
-void *vmm_allocate(VASpace *vas, u64 base, u64 limit, usize page_count, u16 prot);
+void *vmm_allocate(VASpace *vas, u64 base, u64 limit, usize page_count,
+                   u16 prot, int strict_range);
 void *vmm_create_mmio(VASpace *vas, u64 physical, usize size, u16 prot);
 VASpace *vmm_create_vaspace(VASpace *dest, uptr page_tables);

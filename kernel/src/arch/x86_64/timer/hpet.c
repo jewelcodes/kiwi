@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -75,7 +75,7 @@ int hpet_init(void) {
     }
 
     debug_info("HPET @ 0x%llX", hpet_table->base_address.address);
-    hpet_mmio = vmm_create_mmio(NULL, hpet_table->base_address.address, 1,
+    hpet_mmio = vmm_create_mmio(&kvmm, hpet_table->base_address.address, 1,
         VMM_PROT_READ | VMM_PROT_WRITE);
     if(!hpet_mmio) {
         debug_error("failed to map HPET MMIO");

@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+#include <kiwi/debug.h>
 #include <kiwi/vmm.h>
 #include <kiwi/arch/atomic.h>
 #include <string.h>
@@ -53,7 +54,8 @@ void *malloc(size_t size) {
 
     if(!heap_start) {
         usize page_count = (total_size + PAGE_SIZE - 1) / PAGE_SIZE;
-        heap_start = vmm_allocate(NULL, ARCH_KERNEL_HEAP_BASE, (u64) -1, page_count, VMM_PROT_READ | VMM_PROT_WRITE);
+        heap_start = vmm_allocate(&kvmm, ARCH_KERNEL_HEAP_BASE, (u64) -1,
+            page_count, VMM_PROT_READ | VMM_PROT_WRITE, 1);
         if(!heap_start) {
             arch_spinlock_release(&heap_lock);
             return NULL;
@@ -99,8 +101,8 @@ void *malloc(size_t size) {
 
     usize page_count = (total_size - remaining_size + PAGE_SIZE - 1) / PAGE_SIZE;
 
-    void *new_block = vmm_allocate(NULL, (uptr) heap_end, (u64) -1,
-        page_count, VMM_PROT_READ | VMM_PROT_WRITE);
+    void *new_block = vmm_allocate(&kvmm, (uptr) heap_end, (u64) -1,
+        page_count, VMM_PROT_READ | VMM_PROT_WRITE, 1);
 
     if(!new_block) {
         arch_spinlock_release(&heap_lock);
@@ -163,8 +165,8 @@ void *realloc(void *ptr, size_t size) {
         }
 
         usize page_count = (total_size - remaining_size + PAGE_SIZE - 1) / PAGE_SIZE;
-        void *new_block = vmm_allocate(NULL, (uptr) heap_end, (u64) -1,
-            page_count, VMM_PROT_READ | VMM_PROT_WRITE);
+        void *new_block = vmm_allocate(&kvmm, (uptr) heap_end, (u64) -1,
+            page_count, VMM_PROT_READ | VMM_PROT_WRITE, 1);
         if(!new_block) {
             arch_spinlock_release(&heap_lock);
             return NULL;

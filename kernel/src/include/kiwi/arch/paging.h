@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,5 +31,6 @@ uptr arch_map_page(uptr page_tables, uptr virtual, uptr physical, u16 prot);
 uptr arch_map_large_page(uptr page_tables, uptr virtual, uptr physical, u16 prot);
 int arch_unmap_page(uptr page_tables, uptr virtual);
 int arch_get_page(uptr page_tables, uptr virtual, uptr *physical, u16 *prot);
+uptr arch_get_page_tables(void);
 void arch_switch_page_tables(uptr page_tables);
 void arch_set_uncacheable(uptr cr3, uptr virtual);

@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -183,7 +183,7 @@ int arch_get_page(uptr cr3, uptr virtual, uptr *physical, u16 *prot) {
 
 done:
     if(physical) {
-        *physical = entry & ~PAGE_MASK;
+        *physical = entry & ~PAGE_MASK_WITHOUT_NX;
     }
 
     if(prot) {
@@ -259,6 +259,10 @@ uptr arch_paging_init(void) {
 no_memory:
     debug_panic("unable to allocate memory for kernel page tables");
     for(;;);
+}
+
+uptr arch_get_page_tables(void) {
+    return (uptr) arch_get_cr3();
 }
 
 void arch_switch_page_tables(uptr page_tables) {
