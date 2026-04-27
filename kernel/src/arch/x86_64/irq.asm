@@ -1,7 +1,7 @@
 ;
 ; kiwi - general-purpose high-performance operating system
 ;
-; Copyright (c) 2025-26 Omar Elghoul
+; Copyright (c) 2026 Omar Elghoul
 ;
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,14 @@
 
 [bits 64]
 
-section .text
-
 %include "src/arch/x86_64/stack.inc"
+
+global lapic_timer_irq_stub
+align 16
+lapic_timer_irq_stub:
+    pushaq
+    mov rdi, rsp
+    extern lapic_timer_irq
+    call lapic_timer_irq
+    popaq
+    iretq

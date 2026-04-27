@@ -25,7 +25,22 @@
 #include <kiwi/debug.h>
 #include <kiwi/timer.h>
 #include <kiwi/arch/hpet.h>
+#include <kiwi/arch/apic.h>
 
 void arch_timer_init(void) {
-    hpet_init();
+    /* We need to start with the HPET or PIT first because the PIT has a fixed
+     * frequency and the HPET directly reports its frequency. Either can be used
+     * to calibrate the local APIC timer, which will be used as the main timing
+     * source for the workers and scheduler.
+     * 
+     * TODO: actually implement the PIT fallback!
+     */
+    int status;
+    status = hpet_init();
+    if(status)
+        debug_panic("failed to initialize HPET while PIT fallback is unimplemented");
+    
+    status = lapic_timer_init();
+    if(status)
+        debug_panic("failed to initialize local APIC timer");
 }

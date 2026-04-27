@@ -27,6 +27,7 @@
 #include <kiwi/arch/apic.h>
 #include <kiwi/arch/smp.h>
 #include <kiwi/arch/mp.h>
+#include <kiwi/arch/irq.h>
 #include <kiwi/arch/paging.h>
 #include <kiwi/debug.h>
 #include <kiwi/pmm.h>
@@ -151,6 +152,7 @@ void smp_cpu_info_init(LocalAPIC *lapic) {
     arch_write_msr(MSR_GS_BASE, (u64) cpu_info);
     arch_write_msr(MSR_FS_BASE, 0);
 
+    arch_enable_irqs();
     lapic->up = 1;
     return;
 
@@ -171,15 +173,17 @@ void ap_main(void) {
     u8 apic_id = (cpuid.ebx >> 24) & 0xFF;
 
     LocalAPIC *lapic = lapic_get_by_apic_id(apic_id);
-    if(!lapic) {
-        debug_error("failed to find AP %u in LAPIC list", apic_id);
-        for(;;);
-    }
+    if(!lapic)
+        debug_panic("failed to find AP %u in LAPIC list", apic_id);
 
     lapic_init(0);
-    smp_cpu_info_init(lapic);
 
-    debug_info("CPU %u is awake", lapic->apic_id);
+    /* this needs to be done in exactly this order!!! The local APIC timer init
+     * depends on the CPU-specific info being initialized first! Nobody likes
+     * unhandled page faults
+     */
+    smp_cpu_info_init(lapic);
+    lapic_timer_init();
 
     booted = 1;
     arch_flush_cache();
@@ -207,11 +211,8 @@ void smp_init(void) {
 
     for(int i = 0; i < lapics->count; i++) {
         LocalAPIC *lapic = (LocalAPIC *) lapics->items[i];
-        if(!lapic || !lapic->enabled || lapic->up) {
+        if(!lapic || !lapic->enabled || lapic->up)
             continue;
-        }
-
-        debug_info("booting CPU with APIC ID %u...", lapic->apic_id);
 
         void *new_stack = calloc(AP_INITIAL_STACK_PAGES, PAGE_SIZE);
         if(!new_stack) {
@@ -239,9 +240,8 @@ void smp_init(void) {
         lapic_write(LAPIC_INT_COMMAND_LOW, LAPIC_INT_COMMAND_STARTUP
             | LAPIC_INT_COMMAND_TRIGGER_LEVEL | (AP_ENTRY_POINT >> 12));
 
-        while(!booted) {
+        while(!booted)
             arch_spin_backoff();
-        }
     }
 
     for(int i = 0; i < 8; i++) {

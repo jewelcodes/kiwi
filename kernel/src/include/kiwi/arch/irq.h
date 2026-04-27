@@ -24,6 +24,7 @@
 
 #pragma once
 
-#include <kiwi/types.h>
-
+void arch_enable_irqs(void);
+void arch_disable_irqs(void);
 void arch_ack_irq(void *arch_specific);
+void arch_halt(void);
