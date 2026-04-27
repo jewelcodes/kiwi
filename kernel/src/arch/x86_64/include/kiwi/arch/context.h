@@ -24,35 +24,15 @@
 
 #pragma once
 
-#include <kiwi/types.h>
+#include <kiwi/arch/x86_64.h>
 
 typedef struct MachineContext {
-    u64 r15;
-    u64 r14;
-    u64 r13;
-    u64 r12;
-    u64 r11;
-    u64 r10;
-    u64 r9;
-    u64 r8;
-    u64 rbp;
-    u64 rdi;
-    u64 rsi;
-    u64 rdx;
-    u64 rcx;
-    u64 rbx;
-    u64 rax;
-    u64 rip;
-    u64 cs;
-    u64 rflags;
-    u64 rsp;
-    u64 ss;
-} __attribute__((packed)) MachineContext;
+    RegisterState regs;
+} MachineContext;
 
 MachineContext *arch_create_context(int user, void (*start)(void *), void *arg,
                                     uptr *kernel_stack, uptr *user_stack,
                                     uptr *page_tables);
 void arch_destroy_context(MachineContext *context);
-MachineContext *arch_save_context(MachineContext *dst, const MachineContext *src);
-void arch_switch_context(MachineContext *context, uptr page_tables);
-void arch_dump_context(int level, const MachineContext *context);
+MachineContext *arch_set_context(MachineContext *dst, const MachineContext *src);
+void arch_dump_regs(int level, const RegisterState *regs);

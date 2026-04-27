@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025 Omar Elghoul
+ * Copyright (c) 2025-26 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -101,7 +101,7 @@ typedef struct GDTEntry {
     u8 access;
     u8 flags_limit_high;
     u8 base_high;
-} __attribute__((packed)) GDTEntry;
+} GDTEntry;
 
 typedef struct IDTEntry {
     u16 offset_low;
@@ -110,7 +110,7 @@ typedef struct IDTEntry {
     u16 offset_middle;
     u32 offset_high;
     u32 reserved;
-} __attribute__((packed)) IDTEntry;
+} IDTEntry;
 
 typedef struct TSS {
     u32 reserved1;
@@ -148,9 +148,9 @@ typedef struct ExceptionStackFrame {
     u64 rflags;
     u64 rsp;
     u64 ss;
-} __attribute__((packed)) ExceptionStackFrame;
+} ExceptionStackFrame;
 
-typedef struct IRQStackFrame {
+typedef struct RegisterState {
     u64 r15;
     u64 r14;
     u64 r13;
@@ -169,9 +169,13 @@ typedef struct IRQStackFrame {
     u64 rip;
     u64 cs;
     u64 rflags;
-    u64 rsp;        // only valid during ring 3 -> 0 transition
-    u64 ss;         // only valid during ring 3 -> 0 transition
-} __attribute__((packed)) IRQStackFrame;
+    u64 rsp;
+    u64 ss;
+} RegisterState;
+
+typedef struct IRQStackFrame {
+    RegisterState regs;
+} IRQStackFrame;
 
 typedef struct CPUIDRegisters {
     u32 eax;

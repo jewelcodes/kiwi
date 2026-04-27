@@ -135,7 +135,7 @@ void arch_exceptions_setup(void) {
 }
 
 static void dump_exception(const ExceptionStackFrame *frame) {
-    MachineContext ctx = {
+    RegisterState regs = {
         .r15 = frame->r15,
         .r14 = frame->r14,
         .r13 = frame->r13,
@@ -159,7 +159,7 @@ static void dump_exception(const ExceptionStackFrame *frame) {
     };
 
     debug_error("dumping exception context:");
-    arch_dump_context(DEBUG_LEVEL_ERROR, &ctx);
+    arch_dump_regs(DEBUG_LEVEL_ERROR, &regs);
 }
 
 void arch_exception_handler(u64 vector, u64 error_code,
