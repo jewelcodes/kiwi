@@ -68,6 +68,14 @@ arch_spinlock_acquire:
     mov eax, 1
     ret
 
+global arch_spinlock_try_acquire
+align 16
+arch_spinlock_try_acquire:
+    lock bts qword [rdi], 0
+    setnc al
+    movzx eax, al
+    ret
+
 global arch_spinlock_release
 align 16
 arch_spinlock_release:

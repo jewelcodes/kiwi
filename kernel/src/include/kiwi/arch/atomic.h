@@ -33,4 +33,5 @@ void arch_spin_backoff(void);
 int arch_cas32(u32 *ptr, u32 old, u32 new);
 int arch_cas64(u64 *ptr, u64 old, u64 new);
 u32 arch_spinlock_acquire(lock_t *lock);
+u32 arch_spinlock_try_acquire(lock_t *lock);
 void arch_spinlock_release(lock_t *lock);
