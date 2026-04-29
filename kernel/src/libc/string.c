@@ -96,6 +96,18 @@ char *strcpy(char *dst, const char *src) {
     return dst;
 }
 
+char *strncpy(char *dst, const char *src, size_t n) {
+    char *d = dst;
+    usize i;
+    for(i = 0; i < n && src[i]; i++) {
+        d[i] = src[i];
+    }
+    for(; i < n; i++) {
+        d[i] = '\0';
+    }
+    return dst;
+}
+
 void *memset(void *s, int c, size_t n) {
     return __fast_memset(s, c, n);
 }
