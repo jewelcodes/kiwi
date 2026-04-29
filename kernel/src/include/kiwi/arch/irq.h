@@ -27,4 +27,4 @@
 void arch_enable_irqs(void);
 void arch_disable_irqs(void);
 void arch_ack_irq(void *arch_specific);
-void arch_halt(void);
+void arch_halt_until_irq(void);

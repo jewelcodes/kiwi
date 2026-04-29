@@ -131,9 +131,9 @@ arch_disable_irqs:
     cli
     ret
 
-global arch_halt
+global arch_halt_until_irq
 align 16
-arch_halt:
+arch_halt_until_irq:
     hlt
     ret
 
