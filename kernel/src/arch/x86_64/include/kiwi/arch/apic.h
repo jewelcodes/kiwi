@@ -157,7 +157,6 @@ typedef struct LocalAPIC {
     u8 enabled;
     u8 up;
     u64 timer_frequency;
-    u64 timer_alarm;
 } LocalAPIC;
 
 extern Array *lapics;
