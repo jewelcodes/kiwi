@@ -160,8 +160,8 @@ static u64 lapic_calibrate_timer(int divider) {
         final_counter = lapic_read(LAPIC_TIMER_CURRENT_COUNT);
 
         lapic_write(LAPIC_TIMER_INITIAL_COUNT, 0);
-        frequencies[i] = ((initial_counter - final_counter)
-            * 1000000000ULL) / CALIBRATION_PERIOD;
+        frequencies[i] = ((u64) initial_counter - final_counter)
+            * SECOND / CALIBRATION_PERIOD;
     }
 
     lapic_write(LAPIC_TIMER_INITIAL_COUNT, 0);

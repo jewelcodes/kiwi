@@ -124,9 +124,11 @@ u64 uptime(void) {
     return 0;
 }
 
-u64 uptime_ns(void) {
-    TimerDevice *dev = default_global_dev ? default_global_dev : default_dev;
-    int timer_index = default_global_timer >= 0 ? default_global_timer : default_timer;
+u64 uptime_ms(void) {
+    TimerDevice *dev = default_global_dev
+        ? default_global_dev : default_dev;
+    int timer_index = default_global_timer >= 0
+         ? default_global_timer : default_timer;
     u64 frequency, ticks;
 
     if(!dev || timer_index < 0)
@@ -135,7 +137,33 @@ u64 uptime_ns(void) {
     frequency = dev->frequency(timer_index);
     if(!ticks || !frequency)
         return 0;
-    return (ticks * 1000000000ULL) / frequency;
+    return (ticks * SECOND) / frequency;
+}
+
+u64 uptime_ns_fraction(u64 *seconds_out) {
+    TimerDevice *dev = default_global_dev
+        ? default_global_dev : default_dev;
+    int timer_index = default_global_timer >= 0
+        ? default_global_timer : default_timer;
+    u64 ticks, remainder_ticks, frequency, ns_fraction;
+
+    if(!dev || timer_index < 0) {
+        if(seconds_out)
+            *seconds_out = 0;
+        return 0;
+    }
+
+    ticks = dev->read(timer_index);
+    frequency = dev->frequency(timer_index);
+    remainder_ticks = ticks % frequency;
+    ns_fraction = (remainder_ticks * 1000000000ULL) / frequency;
+    if(seconds_out)
+        *seconds_out = ticks / frequency;
+    return ns_fraction;
+}
+
+u64 uptime_us_fraction(u64 *seconds_out) {
+    return uptime_ns_fraction(seconds_out) / 1000;
 }
 
 /* these two functions are wrappers around busy_wait() -- they are not aware of
@@ -143,7 +171,7 @@ u64 uptime_ns(void) {
  * not be used except during very early boot.
  */
 
-void timer_block_for(u64 ns) {
+void timer_block_for(u64 ms) {
     TimerDevice *dev = default_global_dev ? default_global_dev : default_dev;
     int timer_index = default_global_timer >= 0
         ? default_global_timer : default_timer;
@@ -154,16 +182,63 @@ void timer_block_for(u64 ns) {
     frequency = dev->frequency(timer_index);
     if(!frequency)
         return;
-    ticks = (ns * frequency) / 1000000000ULL;
+    ticks = ms * (frequency / SECOND);
     if(dev->direction == -1)
         dev->busy_wait(timer_index, dev->read(timer_index) - ticks);
     else
         dev->busy_wait(timer_index, dev->read(timer_index) + ticks);
 }
 
-void timer_block_until(u64 ns) {
-    u64 now = uptime_ns();
-    if(ns <= now)
+void timer_block_until(u64 ms) {
+    u64 now = uptime_ms();
+    if(ms <= now)
         return;
-    timer_block_for(ns - now);
+    timer_block_for(ms - now);
+}
+
+void timer_set_alarm_after(u64 ms) {
+    TimerDevice *dev = default_dev;
+    int timer_index = default_timer;
+    u64 frequency, delta;
+
+    if(!dev || timer_index < 0)
+        return;
+
+    frequency = dev->frequency(timer_index);
+    delta = (ms * frequency) / SECOND;
+    dev->set_alarm(timer_index, dev->read(timer_index) + delta);
+}
+
+void timer_set_alarm_at(u64 ms) {
+    u64 delta = ms - uptime_ms();
+    if((s64) delta < 0)
+        delta = 0;
+    timer_set_alarm_after(delta);
+}
+
+/* timer_get_alarm(): returns the time REMAINING until the next alarm, zero
+ * if no alarm is currently set
+ */
+u64 timer_get_alarm(void) {
+    TimerDevice *dev = default_dev;
+    int timer_index = default_timer;
+    u64 frequency, alarm;
+
+    if(!dev || timer_index < 0)
+        return 0;
+    
+    frequency = dev->frequency(timer_index);
+    if(!frequency)
+        return 0;
+    alarm = dev->get_alarm(timer_index);
+    return (alarm * SECOND) / frequency;
+}
+
+void timer_cancel_alarm(void) {
+    TimerDevice *dev = default_dev;
+    int timer_index = default_timer;
+
+    if(!dev || timer_index < 0)
+        return;
+    dev->cancel_alarm(timer_index);
 }

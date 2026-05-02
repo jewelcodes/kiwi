@@ -33,16 +33,17 @@ int debug_level = DEBUG_LEVEL_INFO;
 
 void debug_print(int level, const char *file, const char *fmt, ...) {
     va_list args;
+    u64 uptime_seconds, uptime_fraction;
 
     if(level == DEBUG_LEVEL_PANIC)
         debug_level = DEBUG_LEVEL_PANIC;
     if(level < debug_level)
         return;
 
-    arch_spinlock_acquire(&debug_lock);
+    uptime_fraction = uptime_ns_fraction(&uptime_seconds) / 1000;  // keep 6 digits
 
-    u64 ticks = uptime_ns();
-    printf("\e[35m[%4llu.%06llu] ", ticks / SECOND, ticks % SECOND / MICROSECOND);
+    arch_spinlock_acquire(&debug_lock);
+    printf("\e[35m[%4llu.%06llu] ", uptime_seconds, uptime_fraction);
 
     if(file) {
         switch(level) {

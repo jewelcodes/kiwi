@@ -134,6 +134,7 @@ arch_disable_irqs:
 global arch_halt_until_irq
 align 16
 arch_halt_until_irq:
+    sti
     hlt
     ret
 

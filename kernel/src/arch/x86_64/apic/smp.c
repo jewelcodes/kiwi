@@ -32,6 +32,7 @@
 #include <kiwi/debug.h>
 #include <kiwi/pmm.h>
 #include <kiwi/vmm.h>
+#include <kiwi/worker.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -187,7 +188,7 @@ void ap_main(void) {
 
     booted = 1;
     arch_flush_cache();
-    for(;;);
+    worker_loop();
 }
 
 void smp_init(void) {

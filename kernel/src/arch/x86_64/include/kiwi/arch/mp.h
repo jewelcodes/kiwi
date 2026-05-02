@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include <kiwi/types.h>
+#include <kiwi/worker.h>
 #include <kiwi/arch/apic.h>
 
 typedef struct CPUInfo {
@@ -32,6 +32,7 @@ typedef struct CPUInfo {
     void *stack;
     LocalAPIC *local_apic;
     int index;
+    Worker *worker;
 } CPUInfo;
 
 extern Array *cpu_infos;
@@ -40,3 +41,10 @@ int arch_get_cpu_count(void);
 CPUInfo *arch_get_cpu_info(int index);
 CPUInfo *arch_get_current_cpu_info(void);
 void smp_cpu_info_init(LocalAPIC *lapic);
+
+static inline int arch_get_current_cpu(void) {
+    CPUInfo *cpu_info = arch_get_current_cpu_info();
+    if(!cpu_info)
+        return 0;
+    return cpu_info->index;
+}

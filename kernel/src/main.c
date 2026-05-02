@@ -23,6 +23,7 @@
  */
 
 #include <kiwi/debug.h>
+#include <kiwi/worker.h>
 
 struct KernelArgs {
     int argc;
@@ -30,6 +31,8 @@ struct KernelArgs {
 };
 
 int main(int argc, char **argv) {
-    debug_info("hello world?");
-    for(;;);
+    worker_init();
+
+    for(;;)
+        worker_loop();
 }

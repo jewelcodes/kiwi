@@ -26,9 +26,11 @@
 
 #include <kiwi/structs/array.h>
 
-#define SECOND          1000000000ULL
-#define MILLISECOND     1000000ULL
-#define MICROSECOND     1000ULL
+/* These #defines represent how many system time units there are in a second and
+ * a millisecond so we don't have to hardcode in multiple places
+ */
+#define SECOND          1000ULL
+#define MILLISECOND     1ULL
 
 typedef struct TimerDevice {
     /* generic backend-independent timer API */
@@ -104,6 +106,12 @@ int timer_set_default(int device_index, int timer_index);
 int timer_set_default_global(int device_index, int timer_index);
 
 u64 uptime(void);
-u64 uptime_ns(void);
+u64 uptime_ms(void);
+u64 uptime_ns_fraction(u64 *seconds_out);
+u64 uptime_us_fraction(u64 *seconds_out);
 void timer_block_until(u64 ts);
-void timer_block_for(u64 ns);
+void timer_block_for(u64 ms);
+void timer_set_alarm_after(u64 ms);
+void timer_set_alarm_at(u64 ts);
+u64 timer_get_alarm(void);
+void timer_cancel_alarm(void);
