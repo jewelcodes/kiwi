@@ -1,15 +1,16 @@
 MODULE:=kernel
 CC=x86_64-kiwi-gcc
 LD=x86_64-kiwi-ld
+NM=x86_64-kiwi-nm
 ASM=nasm
 
 ARCH=x86_64
 ARCH_DEF=ARCH_X86_64
 ASFLAGS=-f elf64 -i./src/x86_64/$(ARCH)
-CFLAGS=-Wall -c -D$(ARCH_DEF) -I../global -I./src/include -I./src/arch/$(ARCH)/include -mno-sse -ffreestanding -O3 -mcmodel=kernel -mno-red-zone
+CFLAGS=-Wall -c -D$(ARCH_DEF) -I../global -I./src/include -I./src/arch/$(ARCH)/include -fno-omit-frame-pointer -ffreestanding -mno-sse -mcmodel=kernel -mno-red-zone
 LDFLAGS=-T./src/arch/$(ARCH)/linker-$(ARCH).ld -nostdlib
 
-CSRC:=$(shell find . -type f -name "*.c")
+CSRC:=$(shell find . -type f -name "*.c" ! -name "symbols.c")
 COBJ:=$(CSRC:.c=.o)
 
 ASRC:=$(shell find . -type f -name "*.asm")
@@ -38,8 +39,17 @@ clean:
 
 kiwi: $(AOBJ) $(COBJ)
 	@indent=$$(( $(RECURSION_DEPTH) )); \
+	../scripts/generate_symbols.py > symbols.c; \
+	printf "\x1B[0m %*s⚡️  symbols.c\n" $$indent ""; \
+	$(CC) -o symbols.o ${CFLAGS} symbols.c; \
+	printf "\x1B[0m %*s🚀  \x1B[1mkiwi.nosyms\x1B[0m\n" $$indent ""; \
+	$(LD) -o kiwi.nosyms ${LDFLAGS} $(AOBJ) $(COBJ) symbols.o; \
+	$(NM) -n kiwi.nosyms > kiwi.sym; \
+	../scripts/generate_symbols.py kiwi.sym > symbols.c; \
+	printf "\x1B[0m %*s⚡️  symbols.c\n" $$indent ""; \
+	$(CC) -o symbols.o ${CFLAGS} symbols.c; \
 	printf "\x1B[0m %*s🚀  \x1B[1mkiwi\x1B[0m\n" $$indent ""; \
-	$(LD) -o kiwi ${LDFLAGS} $(AOBJ) $(COBJ)
+	$(LD) -o kiwi ${LDFLAGS} $(AOBJ) $(COBJ) symbols.o
 
 build:
 	@indent=$$(( $(RECURSION_DEPTH) )); \

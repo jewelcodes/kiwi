@@ -71,7 +71,7 @@ ap_early_main:
     mov ss, ax
 
     mov rsp, [STACK_PTR]
-    mov rbp, rsp
+    xor rbp, rbp
     mov rax, [ENTRY_POINT_PTR]
     cld
     call rax

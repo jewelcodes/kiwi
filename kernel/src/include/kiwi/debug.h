@@ -24,6 +24,8 @@
 
 #pragma once
 
+#include <kiwi/types.h>
+
 #define DEBUG_LEVEL_INFO    1
 #define DEBUG_LEVEL_WARN    2
 #define DEBUG_LEVEL_ERROR   3
@@ -35,5 +37,14 @@
 #define debug_error(fmt, ...)   debug_print(DEBUG_LEVEL_ERROR, __FILE__ + 4, fmt, ##__VA_ARGS__)
 #define debug_panic(fmt, ...)   debug_print(DEBUG_LEVEL_PANIC, __FILE__ + 4, fmt, ##__VA_ARGS__)
 
+typedef struct KernelSymbol {
+    const char *name;
+    u64 address;
+} KernelSymbol;
+
 extern int debug_level;
+extern KernelSymbol __ksyms[];
+extern usize __ksyms_count;
+
 void debug_print(int level, const char *file, const char *fmt, ...);
+void arch_call_trace(int level);

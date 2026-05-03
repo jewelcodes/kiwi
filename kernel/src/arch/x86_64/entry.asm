@@ -1,7 +1,7 @@
 ;
 ; kiwi - general-purpose high-performance operating system
 ;
-; Copyright (c) 2025 Omar Elghoul
+; Copyright (c) 2025-26 Omar Elghoul
 ;
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,7 @@ _start:
     cld
 
     mov rsp, early_boot_stack_top
-    mov rbp, rsp
+    xor rbp, rbp
 
     mov rdi, rax
     extern arch_early_main
