@@ -1,7 +1,10 @@
 .DS_Store
 .vscode
 kernel/kiwi
+kernel/kiwi.nosyms
+kernel/symbols.c
 *.o
+*.sym
 *.bin
 *.hdd
 guest
