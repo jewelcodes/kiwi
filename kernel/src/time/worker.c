@@ -51,6 +51,8 @@
 void worker_init(void) {
     CPUInfo *cpu_info;
     Worker *cpu_worker;
+    int status;
+
     debug_info("initializing deferred work subsystem...");
 
     for(int i = 0; i < arch_get_cpu_count(); i++) {
@@ -67,12 +69,29 @@ void worker_init(void) {
         cpu_worker->ready_lock = LOCK_INITIAL;
         if(!cpu_worker->ready_work || !cpu_worker->incoming_work)
             debug_panic("failed to create work queues for CPU %d", i);
+        status = arch_create_kernel_context(&cpu_worker->restore_context, worker_loop, NULL);
+        if(status < 0)
+            debug_panic("failed to create kernel context for worker loop on CPU %d", i);
         cpu_info->worker = cpu_worker;
     }
 }
 
 void worker_alarm(MachineContext *ctx) {
-    /* TODO: is this a good place to implement a context switch? */
+    Worker *worker = get_current_worker();
+    WorkItem *work;
+    u64 runtime;
+
+    if(!worker)
+        return;
+    work = worker->current_work;
+    if(!work)
+        return;
+
+    runtime = uptime_ms() - work->ts_started;
+    if(runtime >= work->max_runtime) {
+        work->status = WORK_INTERRUPTED;
+        arch_set_context(ctx, &worker->restore_context);
+    }
 }
 
 Worker *get_current_worker(void) {
@@ -190,7 +209,7 @@ void work_destroy(WorkItem *work) {
         free(work);
 }
 
-void worker_loop(void) {
+void worker_loop(void *unused) {
     Worker *me = NULL;
     WorkItem *work;
     u64 ts_ready;
@@ -239,6 +258,8 @@ void worker_loop(void) {
                 me->current_work = work;
                 work->status = WORK_RUNNING;
                 work->ts_started = uptime_ms();
+                if(work->max_runtime)
+                    timer_set_alarm_after(work->max_runtime);
                 work->func(work->arg);
                 work->ts_finished = uptime_ms();
             }

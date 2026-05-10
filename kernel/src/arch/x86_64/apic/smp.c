@@ -188,7 +188,7 @@ void ap_main(void) {
 
     booted = 1;
     arch_flush_cache();
-    worker_loop();
+    worker_loop(NULL);
 }
 
 void smp_init(void) {

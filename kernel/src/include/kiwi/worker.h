@@ -51,7 +51,11 @@ typedef struct Worker {
     PriorityQueue *ready_work;
     lock_t ready_lock;
     WorkItem *current_work;
-    MachineContext new_context;
+
+    /* if we ever interrupt a work item, we need a way to restore back the state
+     * of the worker loop, so this is what we will use for that.
+     */
+    MachineContext restore_context;
     int needs_context_switch;
 } Worker;
 
@@ -86,4 +90,4 @@ WorkItem *work_create(const char *name, void (*func)(void *), void *arg);
 int work_cancel(WorkItem *work);
 void work_destroy(WorkItem *work);
 int work_status(WorkItem *work);
-void worker_loop(void);
+void worker_loop(void *unused);

@@ -34,5 +34,5 @@ int main(int argc, char **argv) {
     worker_init();
 
     for(;;)
-        worker_loop();
+        worker_loop(NULL);
 }
