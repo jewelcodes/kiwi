@@ -119,3 +119,26 @@ int array_pop_front(Array *array, u64 *item) {
     }
     return 0;
 }
+
+int array_delete_index(Array *array, u64 index) {
+    if((!array) || (index >= array->count)) {
+        return -1;
+    }
+
+    for(u64 i = index + 1; i < array->count; i++) {
+        array->items[i - 1] = array->items[i];
+    }
+
+    array->count--;
+
+    if((array->count > 0) && (array->count <= (array->capacity / 4))
+        && ((array->capacity / 2) >= ARRAY_INITIAL_CAPACITY)) {
+        u64 new_capacity = array->capacity / 2;
+        u64 *new_items = (u64 *) realloc(array->items, sizeof(u64) * new_capacity);
+        if(new_items) {
+            array->items = new_items;
+            array->capacity = new_capacity;
+        }
+    }
+    return 0;
+}
