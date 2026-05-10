@@ -30,9 +30,9 @@ typedef struct MachineContext {
     RegisterState regs;
 } MachineContext;
 
-MachineContext *arch_create_context(int user, void (*start)(void *), void *arg,
-                                    uptr *kernel_stack, uptr *user_stack,
-                                    uptr *page_tables);
-void arch_destroy_context(MachineContext *context);
 MachineContext *arch_set_context(MachineContext *dst, const MachineContext *src);
 void arch_dump_regs(int level, const RegisterState *regs);
+int arch_create_kernel_context(MachineContext *ctx_dst,
+                               void (*entry_point)(void *), void *arg);
+int arch_create_user_context(MachineContext *ctx_dst, uptr *pt_dst,
+                             void (*entry_point)(void *), void *arg);

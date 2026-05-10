@@ -1,7 +1,7 @@
 /*
  * kiwi - general-purpose high-performance operating system
  * 
- * Copyright (c) 2025-26 Omar Elghoul
+ * Copyright (c) 2026 Omar Elghoul
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,20 +23,12 @@
  */
 
 #include <kiwi/arch/context.h>
-#include <kiwi/arch/x86_64.h>
 #include <kiwi/debug.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
 
-/* TODO: don't hard code these */
-#define KERNEL_STACK_SIZE           32768
-#define USER_STACK_SIZE             65536
-
-MachineContext *arch_create_context(int user, void (*start)(void *), void *arg,
-                                    uptr *kernel_stack, uptr *user_stack,
-                                    uptr *page_tables_ptr) {
-    return NULL;
-}
+/* TODO: obviously don't hardcode this */
+#define KERNEL_STACK_SIZE       65536
 
 MachineContext *arch_set_context(MachineContext *dst, const MachineContext *src) {
     return memcpy(dst, src, sizeof(MachineContext));
@@ -58,4 +50,20 @@ void arch_dump_regs(int level, const RegisterState *regs) {
         regs->r13, regs->r14, regs->r15);
     debug_print(level, NULL, "cr0: 0x%016llX cr2: 0x%016llX cr3: 0x%016llX",
         arch_get_cr0(), arch_get_cr2(), arch_get_cr3());
+}
+
+int arch_create_kernel_context(MachineContext *ctx_dst,
+                               void (*entry_point)(void *), void *arg) {
+    void *stack = malloc(KERNEL_STACK_SIZE);
+    if(!stack)
+        return -1;
+
+    memset(ctx_dst, 0, sizeof(MachineContext));
+    ctx_dst->regs.rip = (u64) entry_point;
+    ctx_dst->regs.rdi = (u64) arg;
+    ctx_dst->regs.rsp = (u64) stack + KERNEL_STACK_SIZE;
+    ctx_dst->regs.cs = GDT_KERNEL_CODE << 3;
+    ctx_dst->regs.ss = GDT_KERNEL_DATA << 3;
+    ctx_dst->regs.rflags = 0x202;   /* interrupts enabled */
+    return 0;
 }
