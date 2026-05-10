@@ -145,11 +145,14 @@ typedef struct MADTLocalAPICOverride {
 #define LAPIC_TIMER_DIVIDER_128         0x0A
 #define LAPIC_TIMER_DIVIDER_1           0x0B
 
+#define LAPIC_INT_COMMAND_FIXED         0x000
 #define LAPIC_INT_COMMAND_INIT          0x500
 #define LAPIC_INT_COMMAND_STARTUP       0x600
 #define LAPIC_INT_COMMAND_DELIVERED     0x1000 /* set to ZERO on success */
 #define LAPIC_INT_COMMAND_LEVEL_ASSERT  0x4000
 #define LAPIC_INT_COMMAND_TRIGGER_LEVEL 0x8000
+
+#define LAPIC_IPI_VECTOR                0xF0
 
 typedef struct LocalAPIC {
     u32 acpi_id;

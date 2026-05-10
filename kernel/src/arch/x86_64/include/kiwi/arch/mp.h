@@ -26,6 +26,8 @@
 
 #include <kiwi/worker.h>
 #include <kiwi/arch/apic.h>
+#include <kiwi/arch/atomic.h>
+#include <kiwi/structs/array.h>
 
 typedef struct CPUInfo {
     void *cpu_info;
@@ -33,6 +35,8 @@ typedef struct CPUInfo {
     LocalAPIC *local_apic;
     int index;
     Worker *worker;
+    Array *ipi_queue;
+    lock_t ipi_queue_lock;
 } CPUInfo;
 
 extern Array *cpu_infos;
@@ -41,6 +45,8 @@ int arch_get_cpu_count(void);
 CPUInfo *arch_get_cpu_info(int index);
 CPUInfo *arch_get_current_cpu_info(void);
 void smp_cpu_info_init(LocalAPIC *lapic);
+int arch_send_ipi(int cpu, void *arg);
+int arch_broadcast_ipi(void *arg);
 
 static inline int arch_get_current_cpu(void) {
     CPUInfo *cpu_info = arch_get_current_cpu_info();

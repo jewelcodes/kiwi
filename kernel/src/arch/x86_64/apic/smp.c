@@ -32,11 +32,11 @@
 #include <kiwi/debug.h>
 #include <kiwi/pmm.h>
 #include <kiwi/vmm.h>
-#include <kiwi/worker.h>
+#include <kiwi/ipi.h>
 #include <string.h>
 #include <stdlib.h>
 
-#define AP_INITIAL_STACK_PAGES  8                   /* 32 KB */
+#define AP_INITIAL_STACK_PAGES  16                  /* 64 KB */
 #define IRQ_STACK_SIZE          (16 * PAGE_SIZE)    /* 64 KB */
 #define USER_STACK_SIZE         (16 * PAGE_SIZE)    /* 64 KB */
 
@@ -50,6 +50,8 @@ extern u8 ap_early_main_end[];
 
 static int booted = 0;
 Array *cpu_infos;
+
+void lapic_ipi_handler_stub();
 
 int arch_get_cpu_count(void) {
     return (int) cpu_infos->count;
@@ -194,7 +196,13 @@ void ap_main(void) {
 void smp_init(void) {
     if(lapics->count < 2)
         return;
+
     debug_info("attempt to start %u secondary cores...", lapics->count - 1);
+
+    if(arch_install_isr(LAPIC_IPI_VECTOR, (uptr) lapic_ipi_handler_stub,
+        GDT_KERNEL_CODE << 3, 0) < 0) {
+        debug_panic("failed to install IPI handler");
+    }
 
     // temporarily map low memory so the AP can access it
     for(int i = 0; i < 8; i++) {
@@ -248,4 +256,85 @@ void smp_init(void) {
     for(int i = 0; i < 8; i++) {
         arch_unmap_page(arch_get_cr3(), i * PAGE_SIZE);
     }
+}
+
+static int create_ipi_queue(CPUInfo *cpu_info) {
+    cpu_info->ipi_queue = array_create();
+    if(!cpu_info->ipi_queue) {
+        debug_error("failed to allocate memory for IPI queue %d", cpu_info->index);
+        return -1;
+    }
+    return 0;
+}
+
+int arch_send_ipi(int cpu, void *arg) {
+    CPUInfo *dst;
+    int status;
+    if(cpu_infos->count <= 1)
+        return -1;
+
+    dst = arch_get_cpu_info(cpu);
+    if(!dst)
+        return -1;
+
+    if(arg) {
+        arch_spinlock_acquire(&dst->ipi_queue_lock);
+        if(!dst->ipi_queue) {
+            if(create_ipi_queue(dst) < 0) {
+                arch_spinlock_release(&dst->ipi_queue_lock);
+                return -1;
+            }
+        }
+
+        status = array_push(dst->ipi_queue, (uptr) arg);
+        arch_spinlock_release(&dst->ipi_queue_lock);
+        if(status < 0) {
+            debug_warn("failed to push IPI argument to CPU %d", dst->index);
+            return -1;
+        }
+    }
+
+    lapic_write(LAPIC_INT_COMMAND_HIGH, dst->local_apic->apic_id << 24);
+    lapic_write(LAPIC_INT_COMMAND_LOW, LAPIC_INT_COMMAND_FIXED | LAPIC_IPI_VECTOR);
+    return 0;
+}
+
+int arch_broadcast_ipi(void *arg) {
+    CPUInfo *me, *dst;
+
+    if(cpu_infos->count <= 1)
+        return 0;
+
+    me = arch_get_current_cpu_info();
+
+    if(arg) {
+        for(int i = 0; i < cpu_infos->count; i++) {
+            dst = (CPUInfo *) cpu_infos->items[i];
+            if(!dst || dst == me)
+                continue;
+
+            arch_spinlock_acquire(&dst->ipi_queue_lock);
+            if(!dst->ipi_queue) {
+                if(create_ipi_queue(dst) < 0) {
+                    arch_spinlock_release(&dst->ipi_queue_lock);
+                    continue;
+                }
+            }
+
+            if(array_push(dst->ipi_queue, (uptr) arg)) {
+                debug_warn("failed to push broadcast IPI argument to CPU %d, ignoring...",
+                    dst->index);
+            }
+            arch_spinlock_release(&dst->ipi_queue_lock);
+        }
+    }
+
+    lapic_write(LAPIC_INT_COMMAND_HIGH, 0xFF << 24);
+    lapic_write(LAPIC_INT_COMMAND_LOW, LAPIC_INT_COMMAND_FIXED | LAPIC_IPI_VECTOR);
+    return 0;
+}
+
+void lapic_ipi_handler(IRQStackFrame *frame) {
+    ipi_handler((MachineContext *) frame);
+    arch_ack_irq(NULL);
 }

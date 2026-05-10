@@ -57,6 +57,7 @@ run: qemu
 qemu:
 	@qemu-system-x86_64 \
 		-drive file=kiwi.hdd,format=raw,if=ide \
+		-smp 4 \
 		-m 512M \
 		-monitor stdio \
 		-no-reboot -no-shutdown

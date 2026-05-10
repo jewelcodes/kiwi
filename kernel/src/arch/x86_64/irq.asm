@@ -35,3 +35,13 @@ lapic_timer_irq_stub:
     call lapic_timer_irq
     popaq
     iretq
+
+global lapic_ipi_handler_stub
+align 16
+lapic_ipi_handler_stub:
+    pushaq
+    mov rdi, rsp
+    extern lapic_ipi_handler
+    call lapic_ipi_handler
+    popaq
+    iretq
