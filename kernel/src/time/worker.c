@@ -27,6 +27,7 @@
 #include <kiwi/debug.h>
 #include <kiwi/worker.h>
 #include <kiwi/timer.h>
+#include <kiwi/ipi.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -48,68 +49,50 @@
 
 #define LATE_THRESHOLD      (-((s64) MILLISECOND))
 
-void worker_init(void) {
-    CPUInfo *cpu_info;
-    Worker *cpu_worker;
-    int status;
-
-    debug_info("initializing deferred work subsystem...");
-
-    status = timer_subscribe(worker_alarm);
-    if(status < 0)
-        debug_panic("failed to subscribe worker alarm callback to timer");
-
-    for(int i = 0; i < arch_get_cpu_count(); i++) {
-        cpu_info = arch_get_cpu_info(i);
-        if(!cpu_info)
-            debug_panic("failed to get CPU info for CPU %d", i);
-        
-        cpu_worker = (Worker *) calloc(1, sizeof(Worker));
-        if(!cpu_worker)
-            debug_panic("failed to create worker for CPU %d", i);
-
-        cpu_worker->ready_work = pq_create();
-        cpu_worker->incoming_work = pq_create();
-        cpu_worker->ready_lock = LOCK_INITIAL;
-        if(!cpu_worker->ready_work || !cpu_worker->incoming_work)
-            debug_panic("failed to create work queues for CPU %d", i);
-        status = arch_create_kernel_context(&cpu_worker->restore_context, worker_loop, NULL);
-        if(status < 0)
-            debug_panic("failed to create kernel context for worker loop on CPU %d", i);
-        cpu_info->worker = cpu_worker;
-    }
-}
-
-TIMER_CALLBACK(worker_alarm) {
-    Worker *worker = get_current_worker();
-    WorkItem *work;
-    u64 runtime;
-
+static inline int cpu_pending_work(int cpu) {
+    Worker *worker = cpu_to_worker(cpu);
     if(!worker)
-        return;
-    work = worker->current_work;
-    if(!work)
-        return;
+        return 0;
+    return worker->ready_work->size + worker->incoming_work->size;
+}
 
-    runtime = uptime_ms() - work->ts_started;
-    if(runtime >= work->max_runtime) {
-        work->status = WORK_INTERRUPTED;
-        arch_set_context(ctx, &worker->restore_context);
+static inline int get_busiest_cpu(void) {
+    int cpu_count = arch_get_cpu_count();
+    int busiest = 0;
+    int max_pending = cpu_pending_work(0);
+    int pending;
+
+    for(int i = 1; i < cpu_count; i++) {
+        pending = cpu_pending_work(i);
+        if(pending > max_pending) {
+            busiest = i;
+            max_pending = pending;
+        }
     }
+    return busiest;
 }
 
-Worker *get_current_worker(void) {
-    CPUInfo *cpu_info = arch_get_current_cpu_info();
-    if(!cpu_info)
-        return NULL;
-    return cpu_info->worker;
-}
+static inline int get_least_busy_cpu(void) {
+    Worker *worker;
+    int cpu_count = arch_get_cpu_count();
+    int least_busy = 0;
+    int min_pending = cpu_pending_work(0);
+    int pending;
 
-Worker *cpu_to_worker(int index) {
-    CPUInfo *cpu_info = arch_get_cpu_info(index);
-    if(!cpu_info)
-        return NULL;
-    return cpu_info->worker;
+    for(int i = 1; i < cpu_count; i++) {
+        /* early return in the case we find a CPU that is actually not doing
+         * anything rn, regardless of whether it has work coming in or not.
+         */
+        worker = cpu_to_worker(i);
+        if(!worker->current_work)
+            return i;
+        pending = cpu_pending_work(i);
+        if(pending < min_pending) {
+            least_busy = i;
+            min_pending = pending;
+        }
+    }
+    return least_busy;
 }
 
 static int check_and_set_alarm(Worker *worker, u64 *delta_alarm_out) {
@@ -143,6 +126,175 @@ static int check_and_set_alarm(Worker *worker, u64 *delta_alarm_out) {
     }
 
     return ALARM_UNCHANGED;
+}
+
+static int needs_load_balancing(Worker *worker) {
+    WorkItem *next;
+    u64 ts_est_completion, ts_next_ready;
+
+    if(arch_get_cpu_count() <= 1)
+        return 0;
+
+    /* fun fact, this conditional below was actually inspired by a paper about
+     * network congestion avoidance, where it was proposed that a good heuristic
+     * for determining whether to signal the sender to slow down was if the
+     * incoming queue had an average length of >= 1 over an interval of time.
+     * this is an extremely simple heuristic and can seem super aggressive at a
+     * glance, but I really like it because the existence of even just one item
+     * in the ready queue means we already have an item that is due now or
+     * past-due, and yet we do not have the resources to execute it immediately;
+     * the resource being CPU time in this case. I wrote a 10-page paper on this
+     * back in school and I still believe it is one of the most elegant and
+     * brilliant heuristics out there for proactively avoiding congestion, or in
+     * our case, overload :)
+     * 
+     * the original paper is titled "A Binary Feedback Scheme for Congestion
+     * Avoidance in Computer Networks" (https://doi.org/10.1145/78952.78955) if
+     * anyone reading this is curious, I would very highly recommend it.
+     * shoutout to my college professor John Day for recommending I read it back
+     * in the day
+     */
+    if(worker->ready_work->size)
+        return 1;
+
+    /* in the same proactive spirit of the heuristic above, let's also make a
+     * load balancing event happen if we estimate that the current work item is
+     * still gonna be running by the time the next incoming work is due.
+     */
+    if(worker->current_work && worker->current_work->max_runtime) {
+        ts_est_completion = uptime_ms() + worker->current_work->max_runtime;
+        next = pq_peek(worker->incoming_work, &ts_next_ready);
+        return next && (ts_est_completion >= ts_next_ready);
+    }
+
+    return 0;
+}
+
+static void do_load_balancing(Worker *worker) {
+    int least_busy;
+
+    if(arch_get_cpu_count() <= 1)
+        return;
+    least_busy = get_least_busy_cpu();
+    if(least_busy == arch_get_current_cpu())
+        return;
+    ipi_send(least_busy, IPI_MESSAGE_WAKEUP, NULL);
+}
+
+TIMER_CALLBACK(worker_alarm) {
+    Worker *worker = get_current_worker();
+    WorkItem *work;
+    u64 runtime;
+
+    if(!worker)
+        return;
+    work = worker->current_work;
+    if(!work)
+        return;
+
+    runtime = uptime_ms() - work->ts_started;
+    if(runtime >= work->max_runtime) {
+        work->status = WORK_INTERRUPTED;
+        arch_set_context(ctx, &worker->restore_context);
+    }
+}
+
+static void steal_work(void *unused) {
+    Worker *me, *victim;
+    WorkItem *work;
+    int busiest;
+
+    busiest = get_busiest_cpu();
+    me = get_current_worker();
+    victim = cpu_to_worker(busiest);
+    if(!me || !victim || victim == me)
+        return;
+
+    /* to reduce the overhead from locking, we will try to steal half of the
+     * victim's work per IPI so that the lock can be held for a short time
+     */
+    arch_spinlock_acquire(&victim->ready_lock);
+    arch_spinlock_acquire(&me->ready_lock);
+    for(usize i = 0; i < (victim->ready_work->size+1) / 2; i++) {
+        work = pq_pop(victim->ready_work, NULL);
+        if(!work)
+            break;
+        work->cpu = arch_get_current_cpu();
+        pq_push(me->ready_work, work->ts_ready, work);
+    }
+    arch_spinlock_release(&me->ready_lock);
+    arch_spinlock_release(&victim->ready_lock);
+
+    arch_spinlock_acquire(&victim->incoming_lock);
+    arch_spinlock_acquire(&me->incoming_lock);
+    for(usize i = 0; i < (victim->incoming_work->size+1) / 2; i++) {
+        work = pq_pop(victim->incoming_work, NULL);
+        if(!work)
+            break;
+        work->cpu = arch_get_current_cpu();
+        pq_push(me->incoming_work, work->ts_ready, work);
+    }
+    arch_spinlock_release(&me->incoming_lock);
+    arch_spinlock_release(&victim->incoming_lock);
+
+    check_and_set_alarm(me, NULL);
+}
+
+IPI_CALLBACK(worker_ipi_alarm) {
+    /* we only care about wakeups here */
+    if(!ipi_message_is_wakeup(msg))
+        return;
+    work_create("steal_work", steal_work, NULL);
+}
+
+void worker_init(void) {
+    CPUInfo *cpu_info;
+    Worker *cpu_worker;
+    int status;
+
+    debug_info("initializing deferred work subsystem...");
+
+    status = timer_subscribe(worker_alarm);
+    if(status < 0)
+        debug_panic("failed to subscribe worker alarm callback to timer");
+    status = ipi_subscribe(worker_ipi_alarm);
+    if(status < 0)
+        debug_panic("failed to subscribe worker IPI callback");
+
+    for(int i = 0; i < arch_get_cpu_count(); i++) {
+        cpu_info = arch_get_cpu_info(i);
+        if(!cpu_info)
+            debug_panic("failed to get CPU info for CPU %d", i);
+        
+        cpu_worker = (Worker *) calloc(1, sizeof(Worker));
+        if(!cpu_worker)
+            debug_panic("failed to create worker for CPU %d", i);
+
+        cpu_worker->ready_work = pq_create();
+        cpu_worker->incoming_work = pq_create();
+        cpu_worker->ready_lock = LOCK_INITIAL;
+        if(!cpu_worker->ready_work || !cpu_worker->incoming_work)
+            debug_panic("failed to create work queues for CPU %d", i);
+        status = arch_create_kernel_context(&cpu_worker->restore_context, worker_loop, NULL);
+        if(status < 0)
+            debug_panic("failed to create kernel context for worker loop on CPU %d", i);
+
+        cpu_info->worker = cpu_worker;
+    }
+}
+
+Worker *get_current_worker(void) {
+    CPUInfo *cpu_info = arch_get_current_cpu_info();
+    if(!cpu_info)
+        return NULL;
+    return cpu_info->worker;
+}
+
+Worker *cpu_to_worker(int index) {
+    CPUInfo *cpu_info = arch_get_cpu_info(index);
+    if(!cpu_info)
+        return NULL;
+    return cpu_info->worker;
 }
 
 WorkItem *work_create_timeboxed(const char *name, void (*func)(void *),
@@ -179,7 +331,9 @@ WorkItem *work_create_timeboxed(const char *name, void (*func)(void *),
     }
 
     work->status = WORK_PENDING;
+    arch_spinlock_acquire(&worker->incoming_lock);
     pq_push(worker->incoming_work, ts_ready, work);
+    arch_spinlock_release(&worker->incoming_lock);
     check_and_set_alarm(worker, NULL);
     return work;
 }
@@ -229,24 +383,22 @@ void worker_loop(void *unused) {
     }
 
     for(;;) {
-        arch_enable_irqs();
+        arch_disable_irqs();
 
-        /* move work from the incoming queue into the ready queue if it's time.
-         * we are using locks ONLY with the ready queue because these will
-         * someday be stolen by other CPUs when I implement work stealing, but
-         * the incoming queue is only ever pushed to by the local CPU so it
-         * doesn't need to be locked.
-         */
         while(me->incoming_work->size > 0) {
+            arch_spinlock_acquire(&me->incoming_lock);
             work = (WorkItem *) pq_peek(me->incoming_work, &ts_ready);
-            if(ts_ready > uptime_ms() + LATE_THRESHOLD)
+            if(ts_ready > uptime_ms() + LATE_THRESHOLD) {
+                arch_spinlock_release(&me->incoming_lock);
                 break;      /* we're early, work isn't ready yet */
+            }
 
             work = (WorkItem *) pq_pop(me->incoming_work, &ts_ready);
             arch_spinlock_acquire(&me->ready_lock);
             pq_push(me->ready_work, ts_ready, work);
             work->status = WORK_READY;
             arch_spinlock_release(&me->ready_lock);
+            arch_spinlock_release(&me->incoming_lock);
         }
 
         /* exhaust the ready queue */
@@ -254,18 +406,23 @@ void worker_loop(void *unused) {
             arch_spinlock_acquire(&me->ready_lock);
             work = (WorkItem *) pq_pop(me->ready_work, &ts_ready);
             arch_spinlock_release(&me->ready_lock);
-            if(!work)
-                break;      /* work possibly got stolen by another CPU */
 
             arch_spinlock_acquire(&work->lock);
             if(work->status != WORK_CANCELLED) {
                 me->current_work = work;
                 work->status = WORK_RUNNING;
-                work->ts_started = uptime_ms();
+
+                if(needs_load_balancing(me))
+                    do_load_balancing(me);
                 if(work->max_runtime)
                     timer_set_alarm_after(work->max_runtime);
+
+                arch_enable_irqs();
+                work->ts_started = uptime_ms();
                 work->func(work->arg);
                 work->ts_finished = uptime_ms();
+                work->status = WORK_FINISHED;
+                arch_disable_irqs();
             }
 
             arch_spinlock_release(&work->lock);
@@ -273,11 +430,8 @@ void worker_loop(void *unused) {
         }
 
         /* here we've reached the idle state, so it is time to check for work
-         * and update the alarm if necessary. we disable irqs here to avoid the
-         * off-chance where the alarm we set gets immediately handled before we
-         * go to sleep, making us miss it.
+         * and update the alarm if necessary.
          */
-        arch_disable_irqs();
         status = check_and_set_alarm(me, NULL);
         if(status == ALARM_UNCHANGED_WORK_IS_LATE)
             continue;

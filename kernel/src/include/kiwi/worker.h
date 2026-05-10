@@ -38,17 +38,9 @@
 typedef struct WorkItem WorkItem;
 
 typedef struct Worker {
-    /* incoming_work is only ever accessed by the local CPU, so it doesn't
-     * need to be locked.
-     *
-     * ready_work can be accessed by other CPUs with work stealing (which
-     * is not implemented yet but will be eventually), so it need a lock.
-     * to reduce this contention, the CPUs stealing work will steal half
-     * of the items in the queue at a time, so the lock will only be held
-     * for a very short time.
-     */
     PriorityQueue *incoming_work;
     PriorityQueue *ready_work;
+    lock_t incoming_lock;
     lock_t ready_lock;
     WorkItem *current_work;
 
@@ -81,7 +73,6 @@ struct WorkItem {
 };
 
 void worker_init(void);
-void worker_alarm(MachineContext *ctx);
 Worker *get_current_worker(void);
 Worker *cpu_to_worker(int index);
 WorkItem *work_create_timeboxed(const char *name, void (*func)(void *),
