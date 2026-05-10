@@ -25,12 +25,17 @@
 #pragma once
 
 #include <kiwi/structs/array.h>
+#include <kiwi/arch/context.h>
 
 /* These #defines represent how many system time units there are in a second and
  * a millisecond so we don't have to hardcode in multiple places
  */
 #define SECOND          1000ULL
 #define MILLISECOND     1ULL
+
+typedef void (*TimerCallback)(MachineContext *ctx);
+
+#define TIMER_CALLBACK(f)       void f(MachineContext *ctx)
 
 typedef struct TimerDevice {
     /* generic backend-independent timer API */
@@ -99,11 +104,15 @@ typedef struct TimerDevice {
 } TimerDevice;
 
 extern Array *timer_devices;
+extern Array *timer_subscribers;
 
 void timer_init(void);
 int timer_register(TimerDevice *device);
 int timer_set_default(int device_index, int timer_index);
 int timer_set_default_global(int device_index, int timer_index);
+int timer_subscribe(TimerCallback callback);
+int timer_unsubscribe(TimerCallback callback);
+void timer_irq_handler(MachineContext *ctx);
 
 u64 uptime(void);
 u64 uptime_ms(void);

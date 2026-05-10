@@ -246,6 +246,6 @@ configure_timer:
 }
 
 void lapic_timer_irq(IRQStackFrame *frame) {
-    worker_alarm((MachineContext *) frame);
+    timer_irq_handler((MachineContext *) frame);
     arch_ack_irq(NULL);
 }

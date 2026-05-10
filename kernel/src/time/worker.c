@@ -55,6 +55,10 @@ void worker_init(void) {
 
     debug_info("initializing deferred work subsystem...");
 
+    status = timer_subscribe(worker_alarm);
+    if(status < 0)
+        debug_panic("failed to subscribe worker alarm callback to timer");
+
     for(int i = 0; i < arch_get_cpu_count(); i++) {
         cpu_info = arch_get_cpu_info(i);
         if(!cpu_info)
@@ -76,7 +80,7 @@ void worker_init(void) {
     }
 }
 
-void worker_alarm(MachineContext *ctx) {
+TIMER_CALLBACK(worker_alarm) {
     Worker *worker = get_current_worker();
     WorkItem *work;
     u64 runtime;

@@ -28,6 +28,7 @@
 #include <kiwi/debug.h>
 
 Array *timer_devices = NULL;
+Array *timer_subscribers = NULL;
 static lock_t lock = LOCK_INITIAL;
 static TimerDevice *default_dev = NULL;
 static TimerDevice *default_global_dev = NULL;
@@ -37,8 +38,9 @@ static int default_global_timer = -1;
 void timer_init(void) {
     debug_info("initializing timer subsystem...");
     timer_devices = array_create();
-    if(!timer_devices)
-        debug_panic("failed to create timer devices array");
+    timer_subscribers = array_create();
+    if(!timer_devices || !timer_subscribers)
+        debug_panic("failed to create timer arrays");
 
     arch_timer_init();
 
@@ -114,6 +116,44 @@ int timer_set_default_global(int device_index, int timer_index) {
     default_global_timer = timer_index;
     arch_spinlock_release(&lock);
     return 0;
+}
+
+int timer_subscribe(TimerCallback callback) {
+    int status;
+
+    if(!callback)
+        return -1;
+
+    arch_spinlock_acquire(&lock);
+    status = array_push(timer_subscribers, (u64) callback);
+    arch_spinlock_release(&lock);
+    return status;
+}
+
+int timer_unsubscribe(TimerCallback callback) {
+    int status = -1;
+
+    if(!callback)
+        return status;
+
+    arch_spinlock_acquire(&lock);
+    for(u64 i = 0; i < timer_subscribers->count; i++) {
+        if((TimerCallback) timer_subscribers->items[i] == callback) {
+            status = array_delete_index(timer_subscribers, i);
+            break;
+        }
+    }
+    arch_spinlock_release(&lock);
+    return status;
+}
+
+void timer_irq_handler(MachineContext *ctx) {
+    TimerCallback callback;
+    for(u64 i = 0; i < timer_subscribers->count; i++) {
+        callback = (TimerCallback) timer_subscribers->items[i];
+        if(callback)
+            callback(ctx);
+    }
 }
 
 u64 uptime(void) {
