@@ -47,4 +47,4 @@ extern KernelSymbol __ksyms[];
 extern usize __ksyms_count;
 
 void debug_print(int level, const char *file, const char *fmt, ...);
-void arch_call_trace(int level);
+void arch_call_trace(int level, u64 stack);

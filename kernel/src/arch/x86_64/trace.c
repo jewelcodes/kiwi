@@ -54,7 +54,7 @@ static inline const char *best_match(u64 addr, u64 *diff_out) {
     return name;
 }
 
-void arch_call_trace(int level) {
+void arch_call_trace(int level, u64 stack) {
     struct StackFrame *frame;
     const char *name;
     u64 rbp, offset;
@@ -62,7 +62,10 @@ void arch_call_trace(int level) {
 
     debug_print(level, __FILE__+4, "call trace:");
 
-    asm volatile("mov %%rbp, %0" : "=r" (rbp));
+    if(!stack)
+        asm volatile("mov %%rbp, %0" : "=r" (rbp));
+    else
+        rbp = stack;
 
     while(is_valid_stack_frame(rbp)) {
         frame = (struct StackFrame *) rbp;

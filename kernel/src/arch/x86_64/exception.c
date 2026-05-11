@@ -24,6 +24,8 @@
 
 #include <kiwi/arch/x86_64.h>
 #include <kiwi/arch/context.h>
+#include <kiwi/arch/mp.h>
+#include <kiwi/worker.h>
 #include <kiwi/debug.h>
 #include <kiwi/vmm.h>
 
@@ -158,16 +160,15 @@ static void dump_exception(const ExceptionStackFrame *frame) {
         .ss  = frame->ss
     };
 
-    debug_error("dumping exception context:");
     arch_dump_regs(DEBUG_LEVEL_ERROR, &regs);
 }
 
 void arch_exception_handler(u64 vector, u64 error_code,
                             ExceptionStackFrame *frame) {
+    Worker *worker;
     int user = (frame->cs & 0x03) != 0;
-    if(user) {
+    if(user)
         arch_swapgs();
-    }
 
     const char *message = (vector < 32 && exceptions[vector])
         ? exceptions[vector] : "undefined exception";
@@ -181,15 +182,26 @@ void arch_exception_handler(u64 vector, u64 error_code,
         }
     }
 
-    debug_error("exception %u @ 0x%llX: %s (0x%llX)",
-        vector, frame->rip, message, error_code);
+    worker = get_current_worker();
+    debug_error("unhandled exception %llu on CPU %d @ 0x%llX",
+        vector, arch_get_current_cpu(), frame->rip);
+    if(worker && worker->current_work) {
+        debug_error("%s (0x%llX) in work item '%s'",
+            message, error_code, worker->current_work->name);
+    } else {
+        debug_error("%s (0x%llX)", message, error_code);
+    }
+
     dump_exception(frame);
+    if(IS_KERNEL_ADDRESS(frame->rbp) && IS_KERNEL_ADDRESS(frame->rip))
+        arch_call_trace(DEBUG_LEVEL_ERROR, frame->rbp);
+
+    /* TODO: obviously don't hang here */
     for(;;);
 
 safe:
-    if(user) {
+    if(user)
         arch_swapgs();
-    }
 
     return;
 }
