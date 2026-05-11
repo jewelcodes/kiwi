@@ -63,9 +63,15 @@ const u32 palette[] = {
 };
 
 static void tty_scroll(void) {
-    if(!kernel_terminal.front_buffer) {
+    u32 *low_ptr, *high_ptr, *front_ptr;
+    u32 console_row_pitch = CONSOLE_WIDTH * FONT_WIDTH * 4;
+    u32 console_lines_to_copy = (CONSOLE_HEIGHT - 1) * FONT_HEIGHT;
+    u32 console_x = (kernel_terminal.width/2 - (CONSOLE_WIDTH*FONT_WIDTH)/2);
+    u32 console_y = (kernel_terminal.height/2 - (CONSOLE_HEIGHT*FONT_HEIGHT)/2);
+    u32 offset = console_y * kernel_terminal.pitch / 4 + console_x;
+
+    if(!kernel_terminal.front_buffer)
         return;
-    }
 
     if(!kernel_terminal.back_buffer) {
         kernel_terminal.y = 0;
@@ -73,23 +79,27 @@ static void tty_scroll(void) {
         return;
     }
 
-    u32 *first_row = (u32 *) kernel_terminal.back_buffer + ((kernel_terminal.height/2
-        - (CONSOLE_HEIGHT*FONT_HEIGHT)/2) * kernel_terminal.pitch / 4);
-    u32 *second_row = first_row + (FONT_HEIGHT * kernel_terminal.pitch / 4);
-    u32 *last_row = first_row + ((CONSOLE_HEIGHT - 1) * FONT_HEIGHT * kernel_terminal.pitch / 4);
+    low_ptr = kernel_terminal.back_buffer + offset;
+    high_ptr = low_ptr + (FONT_HEIGHT * kernel_terminal.pitch / 4);
+    front_ptr = kernel_terminal.front_buffer + offset;
 
-    u32 lines_to_move = (CONSOLE_HEIGHT - 1) * FONT_HEIGHT;
-    memcpy(first_row, second_row, lines_to_move * kernel_terminal.pitch);
-
-    for(int i = 0; i < FONT_HEIGHT; i++) {
-        u32 *row = (u32 *)((uptr) last_row + i * kernel_terminal.pitch);
-        for(int j = 0; j < kernel_terminal.width; j++) {
-            row[j] = kernel_terminal.bg;
-        }
+    for(u32 i = 0; i < console_lines_to_copy; i++) {
+        memcpy(low_ptr, high_ptr, console_row_pitch);
+        memcpy(front_ptr, high_ptr, console_row_pitch);
+        low_ptr += kernel_terminal.pitch / 4;
+        high_ptr += kernel_terminal.pitch / 4;
+        front_ptr += kernel_terminal.pitch / 4;
     }
 
-    memcpy(kernel_terminal.front_buffer, kernel_terminal.back_buffer,
-        kernel_terminal.height * kernel_terminal.pitch);
+    /* clear last line */
+    for(u32 i = 0; i < FONT_HEIGHT; i++) {
+        for(u32 j = 0; j < console_row_pitch / 4; j++) {
+            low_ptr[j] = kernel_terminal.bg;
+            front_ptr[j] = kernel_terminal.bg;
+        }
+        low_ptr += kernel_terminal.pitch / 4;
+        front_ptr += kernel_terminal.pitch / 4;
+    }
 
     kernel_terminal.x = 0;
     kernel_terminal.y = CONSOLE_HEIGHT - 1;
