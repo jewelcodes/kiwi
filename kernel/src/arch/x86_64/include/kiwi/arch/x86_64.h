@@ -26,63 +26,83 @@
 
 #include <kiwi/types.h>
 
-#define GDT_ENTRIES             7
-#define IDT_ENTRIES             256
+/* segments */
+#define GDT_ENTRIES                 7
+#define IDT_ENTRIES                 256
 
-#define GDT_NULL                0
-#define GDT_KERNEL_CODE         1
-#define GDT_KERNEL_DATA         2
-#define GDT_USER_DATA           3
-#define GDT_USER_CODE           4
-#define GDT_TSS_LOW             5
-#define GDT_TSS_HIGH            6
+#define GDT_NULL                    0
+#define GDT_KERNEL_CODE             1
+#define GDT_KERNEL_DATA             2
+#define GDT_USER_DATA               3
+#define GDT_USER_CODE               4
+#define GDT_TSS_LOW                 5
+#define GDT_TSS_HIGH                6
 
-#define GDT_ACCESS_ACCESSED     0x01
-#define GDT_ACCESS_WRITABLE     0x02
-#define GDT_ACCESS_DC           0x04
-#define GDT_ACCESS_EXEC         0x08
-#define GDT_ACCESS_TSS          (GDT_ACCESS_ACCESSED | GDT_ACCESS_EXEC)
-#define GDT_ACCESS_CODE_DATA    0x10
-#define GDT_ACCESS_DPL0         0x00
-#define GDT_ACCESS_DPL3         0x60
-#define GDT_ACCESS_PRESENT      0x80
+#define GDT_ACCESS_ACCESSED         0x01
+#define GDT_ACCESS_WRITABLE         0x02
+#define GDT_ACCESS_DC               0x04
+#define GDT_ACCESS_EXEC             0x08
+#define GDT_ACCESS_TSS              (GDT_ACCESS_ACCESSED | GDT_ACCESS_EXEC)
+#define GDT_ACCESS_CODE_DATA        0x10
+#define GDT_ACCESS_DPL0             0x00
+#define GDT_ACCESS_DPL3             0x60
+#define GDT_ACCESS_PRESENT          0x80
 
-#define GDT_FLAGS_AVAILABLE     0x10
-#define GDT_FLAGS_64_BIT        0x20
-#define GDT_FLAGS_32_BIT        0x40
-#define GDT_FLAGS_GRANULARITY   0x80
+#define GDT_FLAGS_AVAILABLE         0x10
+#define GDT_FLAGS_64_BIT            0x20
+#define GDT_FLAGS_32_BIT            0x40
+#define GDT_FLAGS_GRANULARITY       0x80
 
-#define IDT_FLAGS_VALID         0x8000
-#define IDT_FLAGS_INTERRUPT     0x0E00
-#define IDT_FLAGS_TRAP          0x0F00
-#define IDT_FLAGS_DPL0          0x0000
-#define IDT_FLAGS_DPL3          0x6000
+/* interrupts */
+#define IDT_FLAGS_VALID             0x8000
+#define IDT_FLAGS_INTERRUPT         0x0E00
+#define IDT_FLAGS_TRAP              0x0F00
+#define IDT_FLAGS_DPL0              0x0000
+#define IDT_FLAGS_DPL3              0x6000
 
-#define MSR_EFER                0xC0000080
-#define MSR_FS_BASE             0xC0000100
-#define MSR_GS_BASE             0xC0000101
-#define MSR_KERNEL_GS_BASE      0xC0000102
-#define MSR_STAR                0xC0000081
-#define MSR_LSTAR               0xC0000082
-#define MSR_CSTAR               0xC0000083
-#define MSR_SFMASK              0xC0000084
+/* MSRs */
+#define MSR_MTRR_CAP                0xFE
+#define MSR_MTRR_DEF_TYPE           0x2FF
+#define MSR_MTRR_REGION_BASE(n)     (0x200 + (n) * 2)
+#define MSR_MTRR_REGION_MASK(n)     (0x200 + (n) * 2 + 1)
+#define MSR_EFER                    0xC0000080
+#define MSR_FS_BASE                 0xC0000100
+#define MSR_GS_BASE                 0xC0000101
+#define MSR_KERNEL_GS_BASE          0xC0000102
+#define MSR_STAR                    0xC0000081
+#define MSR_LSTAR                   0xC0000082
+#define MSR_CSTAR                   0xC0000083
+#define MSR_SFMASK                  0xC0000084
 
-#define MSR_EFER_SYSCALL        0x0001
-#define MSR_EFER_NX             0x0800
-#define MSR_EFER_FFXSR          0x4000
+/* MTRRs */
+#define MTRR_CAP_WRITE_COMBINE      0x400
+#define MTRR_MASK_VALID             0x800
+#define MTRR_DEF_TYPE_ENABLED       0x800
 
-#define CR0_WRITE_PROTECT       0x00010000
-#define CR0_NOT_WRITE_THROUGH   0x20000000
-#define CR0_CACHE_DISABLE       0x40000000
-#define CR4_FSGSBASE            0x00010000
+#define MTRR_TYPE_UNCACHABLE        0x00    /* cannot be overridden by WC */
+#define MTRR_TYPE_WRITE_COMBINE     0x01
+#define MTRR_TYPE_WRITE_THROUGH     0x04
+#define MTRR_TYPE_WRITE_PROTECTED   0x05
+#define MTRR_TYPE_WRITEBACK         0x06
+#define MTRR_TYPE_UNCACHED          0x07    /* can be overridden by WC */
 
-#define PAGE_PRESENT            0x001
-#define PAGE_WRITABLE           0x002
-#define PAGE_USER               0x004
-#define PAGE_WRITE_THROUGH      0x008
-#define PAGE_CACHE_DISABLE      0x010
-#define PAGE_SIZE_TOGGLE        0x080
-#define PAGE_NO_EXECUTE         (1ULL << 63)
+/* Extended Features */
+#define MSR_EFER_SYSCALL            0x0001
+#define MSR_EFER_NX                 0x0800
+#define MSR_EFER_FFXSR              0x4000
+
+#define CR0_WRITE_PROTECT           0x00010000
+#define CR0_NOT_WRITE_THROUGH       0x20000000
+#define CR0_CACHE_DISABLE           0x40000000
+#define CR4_FSGSBASE                0x00010000
+
+#define PAGE_PRESENT                0x001
+#define PAGE_WRITABLE               0x002
+#define PAGE_USER                   0x004
+#define PAGE_WRITE_THROUGH          0x008
+#define PAGE_CACHE_DISABLE          0x010
+#define PAGE_SIZE_TOGGLE            0x080
+#define PAGE_NO_EXECUTE             (1ULL << 63)
 
 typedef struct GDTR {
     u16 limit;
@@ -207,3 +227,4 @@ void arch_write_msr(u32 msr, u64 value);
 u64 arch_read_msr(u32 msr);
 void arch_swapgs();
 uptr arch_new_page_tables(void);
+void mtrr_init(void);

@@ -179,6 +179,8 @@ void ap_main(void) {
     idtr.base = (u64)&idt;
     arch_load_idt(&idtr);
 
+    mtrr_init();
+
     CPUIDRegisters cpuid;
     memset(&cpuid, 0, sizeof(CPUIDRegisters));
     arch_read_cpuid(1, &cpuid);

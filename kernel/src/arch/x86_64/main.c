@@ -32,6 +32,7 @@
 #include <kiwi/timer.h>
 #include <kiwi/arch/apic.h>
 #include <kiwi/arch/smp.h>
+#include <kiwi/arch/x86_64.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -64,6 +65,7 @@ int arch_early_main(KiwiBootInfo *boot_info_ptr) {
     arch_dt_setup();
     arch_exceptions_setup();
     pmm_init();
+    mtrr_init();
     vmm_init();
 
     kernel_terminal.back_buffer = malloc(kernel_terminal.pitch * kernel_terminal.height);
