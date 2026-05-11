@@ -179,10 +179,11 @@ int lapic_timer_init(void) {
      * that is high enough to provide good resolution for short alarms, but also
      * also low enough to allow us to not worry about overflows, especially
      * because the local APIC timer is (unfortunately) just 32 bits.
+     * 
      */
-    for(divider = 128; divider >= 1; divider /= 2) {
+    for(divider = 1; divider <= 128; divider *= 2) {
         frequency = lapic_calibrate_timer(divider);
-        if(frequency >= 10000 && frequency <= 100000000)
+        if(frequency >= 10000 && frequency <= 50000000)
             goto configure_timer;
     }
 
