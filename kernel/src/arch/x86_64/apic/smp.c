@@ -29,6 +29,7 @@
 #include <kiwi/arch/mp.h>
 #include <kiwi/arch/irq.h>
 #include <kiwi/arch/paging.h>
+#include <kiwi/timer.h>
 #include <kiwi/debug.h>
 #include <kiwi/pmm.h>
 #include <kiwi/vmm.h>
@@ -44,6 +45,10 @@
 #define CR3_PTR                 0x2000
 #define STACK_PTR               0x2008
 #define ENTRY_POINT_PTR         0x2010
+
+#define SIPI_MAX_RETRIES        2 /* apparently some older machines need this? or so I heard */
+#define INIT_IPI_DELAY          (20 * MILLISECOND)
+#define SIPI_MAX_TIMEOUT        (500 * MILLISECOND)
 
 extern u8 ap_early_main[];
 extern u8 ap_early_main_end[];
@@ -66,6 +71,10 @@ CPUInfo *arch_get_cpu_info(int index) {
 }
 
 void smp_cpu_info_init(LocalAPIC *lapic) {
+    u64 cr0 = arch_get_cr0();
+    cr0 &= ~CR0_CACHE_DISABLE;
+    arch_set_cr0(cr0);
+
     CPUIDRegisters cpuid;
     memset(&cpuid, 0, sizeof(CPUIDRegisters));
     arch_read_cpuid(7, &cpuid);
@@ -215,6 +224,7 @@ void smp_init(void) {
 
     u64 volatile *stack_ptr = (u64 volatile *) STACK_PTR;
     u64 volatile *entry_point_ptr = (u64 volatile *) ENTRY_POINT_PTR;
+    int waited_time = 0, retries = 0;
 
     usize ap_code_size = (usize)((uptr) &ap_early_main_end - (uptr) &ap_early_main);
 
@@ -237,25 +247,40 @@ void smp_init(void) {
         arch_flush_cache();
 
         lapic_write(LAPIC_INT_COMMAND_HIGH, lapic->apic_id << 24);
-        lapic_write(LAPIC_INT_COMMAND_LOW, LAPIC_INT_COMMAND_INIT
-            | LAPIC_INT_COMMAND_LEVEL_ASSERT | LAPIC_INT_COMMAND_TRIGGER_LEVEL);
-        while(lapic_read(LAPIC_INT_COMMAND_LOW) & LAPIC_INT_COMMAND_DELIVERED);
+        lapic_write(LAPIC_INT_COMMAND_LOW,
+            LAPIC_INT_COMMAND_INIT
+            | LAPIC_INT_COMMAND_LEVEL_ASSERT
+            | LAPIC_INT_COMMAND_TRIGGER_LEVEL);
+        lapic_wait_for_delivery();
 
+        timer_block_for(INIT_IPI_DELAY);
+
+        retries = 0;
+send_sipi:
         lapic_write(LAPIC_INT_COMMAND_HIGH, lapic->apic_id << 24);
-        lapic_write(LAPIC_INT_COMMAND_LOW, LAPIC_INT_COMMAND_INIT);
-        while(lapic_read(LAPIC_INT_COMMAND_LOW) & LAPIC_INT_COMMAND_DELIVERED);
+        lapic_write(LAPIC_INT_COMMAND_LOW,
+            LAPIC_INT_COMMAND_STARTUP | (AP_ENTRY_POINT >> 12));
+        lapic_wait_for_delivery();
 
-        lapic_write(LAPIC_INT_COMMAND_HIGH, lapic->apic_id << 24);
-        lapic_write(LAPIC_INT_COMMAND_LOW, LAPIC_INT_COMMAND_STARTUP
-            | LAPIC_INT_COMMAND_TRIGGER_LEVEL | (AP_ENTRY_POINT >> 12));
+        waited_time = 0;
+wait_for_boot:
+        if(booted)
+            continue;
+        timer_block_for(MILLISECOND);
+        waited_time++;
+        if(waited_time < SIPI_MAX_TIMEOUT)
+            goto wait_for_boot;
 
-        while(!booted)
-            arch_spin_backoff();
+        retries++;
+        if(retries < SIPI_MAX_RETRIES)
+            goto send_sipi;
+
+        debug_panic("timeout booting CPU APIC ID %u after %d retries (%d ms each)",
+            lapic->apic_id, retries, SIPI_MAX_TIMEOUT);
     }
 
-    for(int i = 0; i < 8; i++) {
+    for(int i = 0; i < 8; i++)
         arch_unmap_page(arch_get_cr3(), i * PAGE_SIZE);
-    }
 }
 
 static int create_ipi_queue(CPUInfo *cpu_info) {

@@ -148,7 +148,7 @@ typedef struct MADTLocalAPICOverride {
 #define LAPIC_INT_COMMAND_FIXED         0x000
 #define LAPIC_INT_COMMAND_INIT          0x500
 #define LAPIC_INT_COMMAND_STARTUP       0x600
-#define LAPIC_INT_COMMAND_DELIVERED     0x1000 /* set to ZERO on success */
+#define LAPIC_INT_COMMAND_IN_PROGRESS   0x1000
 #define LAPIC_INT_COMMAND_LEVEL_ASSERT  0x4000
 #define LAPIC_INT_COMMAND_TRIGGER_LEVEL 0x8000
 
@@ -172,3 +172,7 @@ void lapic_register(MADTLocalAPIC *entry, int up);
 LocalAPIC *lapic_get_by_apic_id(u32 apic_id);
 LocalAPIC *lapic_get_by_acpi_id(u32 acpi_id);
 int lapic_timer_init(void);
+
+#define lapic_wait_for_delivery() \
+    while(lapic_read(LAPIC_INT_COMMAND_LOW) \
+        & LAPIC_INT_COMMAND_IN_PROGRESS);

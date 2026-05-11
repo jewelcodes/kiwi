@@ -69,7 +69,8 @@ void apic_init(void) {
                     lapic->flags,
                     (lapic->flags & MADT_LAPIC_FLAGS_ENABLED) ? "enabled" : "disabled");
 
-                lapic_register(lapic, lapic->apic_id == bsp_id);
+                if(lapic->flags & MADT_LAPIC_FLAGS_ENABLED)
+                    lapic_register(lapic, lapic->apic_id == bsp_id);
                 break;
             }
 
