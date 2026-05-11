@@ -508,7 +508,8 @@ int vmm_page_fault(VASpace *vas, u64 virtual, int user, int write, int exec) {
         if(!arch_map_page(vas->arch_page_tables, aligned_virtual, physical,
             node->prot))
             goto release_and_out;
-        
+
+        arch_set_uncacheable(vas->arch_page_tables, aligned_virtual);
         status = 0;
         break;
     default:
