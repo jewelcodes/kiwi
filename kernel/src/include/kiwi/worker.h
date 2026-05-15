@@ -35,31 +35,17 @@
 #define WORK_INTERRUPTED    4
 #define WORK_FINISHED       5
 
-typedef struct WorkItem WorkItem;
-
-typedef struct Worker {
-    PriorityQueue *incoming_work;
-    PriorityQueue *ready_work;
-    lock_t incoming_lock;
-    lock_t ready_lock;
-    WorkItem *current_work;
-
-    /* if we ever interrupt a work item, we need a way to restore back the state
-     * of the worker loop, so this is what we will use for that.
-     */
-    MachineContext restore_context;
-    int needs_context_switch;
-} Worker;
-
-struct WorkItem {
-    char name[64];
+typedef struct WorkItem {
+    char name[512];
     void (*func)(void *);
     void *arg;
     u64 ts_created;
     u64 ts_ready;       /* work items are sorted by this value */
+    u64 ts_modified;    /* every time the item runs this will be updated */
     u64 max_runtime;    /* maximum allowed runtime before interrupting */
     u64 ts_started;
     u64 ts_finished;
+    u64 run_count;
     int status;
     int cpu;            /* current CPU work is assigned to. if the work has not
                          * started yet, this field may not accurately reflect
@@ -70,14 +56,34 @@ struct WorkItem {
                          * work items?
                          */
     lock_t lock;        /* used to synchronize exec and cancel */
-};
+} WorkItem;
+
+typedef struct Worker {
+    PriorityQueue *incoming_work;
+    PriorityQueue *ready_work;
+    lock_t incoming_lock;
+    lock_t ready_lock;
+    WorkItem *current_work;
+
+    /* this only really exists so that the IPI handler can schedule a work item
+     * without needing to allocate memory or acquire locks and create some less
+     * than desirable situations
+     */
+    WorkItem steal_work;
+
+    /* if we ever interrupt a work item, we need a way to restore back the state
+     * of the worker loop, so this is what we will use for that.
+     */
+    MachineContext restore_context;
+    int needs_context_switch;
+} Worker;
 
 void worker_init(void);
 Worker *get_current_worker(void);
 Worker *cpu_to_worker(int index);
-WorkItem *work_create_timeboxed(const char *name, void (*func)(void *),
-                                void *arg, u64 ts_ready, u64 max_runtime);
-WorkItem *work_create(const char *name, void (*func)(void *), void *arg);
+WorkItem *work_create(WorkItem *work, const char *name, void (*func)(void *),
+                      void *arg);
+int work_enqueue(WorkItem *work, u64 ts_ready, u64 max_runtime);
 int work_cancel(WorkItem *work);
 void work_destroy(WorkItem *work);
 int work_status(WorkItem *work);

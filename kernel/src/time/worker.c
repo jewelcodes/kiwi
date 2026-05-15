@@ -30,6 +30,7 @@
 #include <kiwi/ipi.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #define ALARM_UNCHANGED                 0
 #define ALARM_UNCHANGED_WORK_IS_LATE    1
@@ -241,10 +242,16 @@ static void steal_work(void *unused) {
 }
 
 IPI_CALLBACK(worker_ipi_alarm) {
+    Worker *me;
+
     /* we only care about wakeups here */
     if(!ipi_message_is_wakeup(msg))
         return;
-    work_create("steal_work", steal_work, NULL);
+
+    me = get_current_worker();
+    if(!me)
+        return;
+    work_enqueue(&me->steal_work, 0, 0);
 }
 
 void worker_init(void) {
@@ -279,6 +286,11 @@ void worker_init(void) {
         if(status < 0)
             debug_panic("failed to create kernel context for worker loop on CPU %d", i);
 
+        /* this work item exists statically so that the irq handlers never need
+         * to allocate memory or otherwise acquire locks
+         */
+        work_create(&cpu_worker->steal_work, "", steal_work, NULL);
+        sprintf(cpu_worker->steal_work.name, "steal_work_cpu_%d", i);
         cpu_info->worker = cpu_worker;
     }
 }
@@ -297,26 +309,42 @@ Worker *cpu_to_worker(int index) {
     return cpu_info->worker;
 }
 
-WorkItem *work_create_timeboxed(const char *name, void (*func)(void *),
-                                void *arg, u64 ts_ready, u64 max_runtime) {
+WorkItem *work_create(WorkItem *work, const char *name, void (*func)(void *),
+                      void *arg) {
     Worker *worker = get_current_worker();
-    WorkItem *work;
     if(!worker)
         return NULL;
 
-    work = calloc(1, sizeof(WorkItem));
+    if(!work)
+        work = malloc(sizeof(*work));
     if(!work)
         return NULL;
 
-    strncpy(work->name, name, sizeof(work->name) - 1);
+    memset(work, 0, sizeof(*work));
+    if(name)
+        strncpy(work->name, name, sizeof(work->name) - 1);
+    else
+        strcpy(work->name, "unnamed_work");
     work->name[sizeof(work->name) - 1] = '\0';
     work->func = func;
     work->arg = arg;
     work->ts_created = uptime_ms();
-    work->ts_ready = ts_ready;
-    work->max_runtime = max_runtime;
+    work->ts_modified = work->ts_created;
     work->cpu = arch_get_current_cpu();
     work->lock = LOCK_INITIAL;
+
+    return work;
+}
+
+int work_enqueue(WorkItem *work, u64 ts_ready, u64 max_runtime) {
+    Worker *worker = get_current_worker();
+    if(!worker || !work)
+        return -1;
+
+    work->ts_ready = ts_ready;
+    work->ts_modified = uptime_ms();
+    work->max_runtime = max_runtime;
+    work->cpu = arch_get_current_cpu();
 
     if(ts_ready <= uptime_ms() + LATE_THRESHOLD) {
         /* if the work is already late, just put it in the ready queue directly
@@ -327,7 +355,7 @@ WorkItem *work_create_timeboxed(const char *name, void (*func)(void *),
         arch_spinlock_acquire(&worker->ready_lock);
         pq_push(worker->ready_work, ts_ready, work);
         arch_spinlock_release(&worker->ready_lock);
-        return work;
+        return 0;
     }
 
     work->status = WORK_PENDING;
@@ -335,11 +363,7 @@ WorkItem *work_create_timeboxed(const char *name, void (*func)(void *),
     pq_push(worker->incoming_work, ts_ready, work);
     arch_spinlock_release(&worker->incoming_lock);
     check_and_set_alarm(worker, NULL);
-    return work;
-}
-
-WorkItem *work_create(const char *name, void (*func)(void *), void *arg) {
-    return work_create_timeboxed(name, func, arg, 0, 0);
+    return 0;
 }
 
 int work_cancel(WorkItem *work) {
@@ -421,6 +445,7 @@ void worker_loop(void *unused) {
                 work->ts_started = uptime_ms();
                 work->func(work->arg);
                 work->ts_finished = uptime_ms();
+                work->run_count++;
                 work->status = WORK_FINISHED;
                 arch_disable_irqs();
             }
